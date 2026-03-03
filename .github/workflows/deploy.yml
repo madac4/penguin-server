@@ -6,7 +6,7 @@ on:
 
 jobs:
   ci:
-    name: Lint, Typecheck & Build
+    name: Typecheck & Build
     runs-on: ubuntu-latest
 
     steps:
@@ -18,6 +18,9 @@ jobs:
         with:
           node-version: '20'
           cache: 'yarn'
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
@@ -46,4 +49,6 @@ jobs:
           heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
           heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
           heroku_email: ${{ secrets.HEROKU_EMAIL }}
-          buildpack: 'heroku/nodejs'
+          justlogin: false
+          dontuseforce: false
+          usedocker: false
