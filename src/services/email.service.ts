@@ -19,7 +19,7 @@ export async function sendConfirmationEmail(
   token: string,
   firstName: string,
 ): Promise<void> {
-  const confirmUrl = `${mailConfig.clientUrl}/confirm-email?token=${token}`;
+  const confirmUrl = `${mailConfig.clientUrl}/auth/confirm-email?token=${token}`;
 
   const html = await renderTemplate('confirm-email', {
     firstName,
@@ -45,7 +45,7 @@ export async function sendPasswordResetEmail(
   token: string,
   firstName: string,
 ): Promise<void> {
-  const resetUrl = `${mailConfig.clientUrl}/reset-password?token=${token}`;
+  const resetUrl = `${mailConfig.clientUrl}/auth/reset-password?token=${token}`;
 
   const html = await renderTemplate('reset-password', {
     firstName,
