@@ -1,5 +1,4 @@
 import type { Request, Response } from 'express';
-import { toLoginResponseDto } from '../dtos/auth.dto';
 import { CatchAsyncErrors, ErrorHandler } from '../middlewares/error.middleware';
 import * as authService from '../services/auth.service';
 import { success } from '../utils/response.util';
@@ -41,8 +40,8 @@ export const resendConfirmationEmail = CatchAsyncErrors(
 );
 
 export const login = CatchAsyncErrors(async (req: Request, res: Response): Promise<void> => {
-  const { user, tokens } = await authService.login(req.body as LoginInput);
-  success(res, toLoginResponseDto(user, tokens));
+  const tokens = await authService.login(req.body as LoginInput);
+  success(res, tokens);
 });
 
 export const refreshToken = CatchAsyncErrors(async (req: Request, res: Response): Promise<void> => {

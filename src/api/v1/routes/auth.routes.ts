@@ -49,6 +49,17 @@ const router = Router();
  *     responses:
  *       '201':
  *         description: User created — confirmation email sent
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: User created successfully, confirmation email sent
  *       '400':
  *         description: Validation failed
  *       '409':
@@ -99,11 +110,6 @@ router.post('/register', validateBody(registerSchema), authController.register);
  *                 data:
  *                   type: object
  *                   properties:
- *                     user:
- *                       $ref: '#/components/schemas/UserDto'
- *                     tokens:
- *                       type: object
- *                       properties:
  *                         accessToken:
  *                           type: string
  *                         refreshToken:

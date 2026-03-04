@@ -51,6 +51,9 @@ app.use(
     metaData: {
       title: 'Penguin CMS — API Reference',
     },
+    authentication: {
+      preferredSecurityScheme: 'bearerAuth',
+    },
   }),
 );
 

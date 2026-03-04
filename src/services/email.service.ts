@@ -65,3 +65,30 @@ export async function sendPasswordResetEmail(
     html,
   });
 }
+
+export async function sendEmailChangeEmail(
+  newEmail: string,
+  token: string,
+  firstName: string,
+): Promise<void> {
+  const confirmUrl = `${mailConfig.clientUrl}/confirm-email-change?token=${token}`;
+
+  const html = await renderTemplate('confirm-email-change', {
+    firstName,
+    newEmail,
+    confirmUrl,
+  });
+
+  if (!mailConfig.resendApiKey) {
+    console.log(`\n📧 Email change confirmation → ${newEmail}`);
+    console.log(`   Link: ${confirmUrl}\n`);
+    return;
+  }
+
+  await resend.emails.send({
+    from: mailConfig.from,
+    to: newEmail,
+    subject: 'Confirm your new email — Penguin',
+    html,
+  });
+}

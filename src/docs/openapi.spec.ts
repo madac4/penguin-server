@@ -25,6 +25,7 @@ export const baseSpec = {
   ],
   tags: [
     { name: 'Auth', description: 'Authentication & session management' },
+    { name: 'Profile', description: 'User profile & account settings' },
     { name: 'Users', description: 'User account management' },
     {
       name: 'Products',
@@ -52,7 +53,7 @@ export const baseSpec = {
   ],
   components: {
     securitySchemes: {
-      BearerAuth: {
+      bearerAuth: {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
@@ -89,6 +90,7 @@ export const baseSpec = {
           firstName: { type: 'string' },
           lastName: { type: 'string' },
           email: { type: 'string', format: 'email' },
+          pendingEmail: { type: 'string', format: 'email', nullable: true },
           createdAt: { type: 'string', format: 'date-time' },
           updatedAt: { type: 'string', format: 'date-time' },
         },

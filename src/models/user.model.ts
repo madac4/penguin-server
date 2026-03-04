@@ -9,6 +9,7 @@ export interface IUser {
   email: string;
   password: string;
   isEmailConfirmed: boolean;
+  pendingEmail?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +55,12 @@ const userSchema = new Schema<IUserDocument>(
     isEmailConfirmed: {
       type: Boolean,
       default: false,
+    },
+    pendingEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: undefined,
     },
   },
   {

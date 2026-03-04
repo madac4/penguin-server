@@ -17,6 +17,7 @@ import { sendConfirmationEmail, sendPasswordResetEmail } from './email.service';
 
 export async function register(input: RegisterInput): Promise<void> {
   const existingEmail = await User.findOne({ email: input.email });
+
   if (existingEmail) throw new ErrorHandler('Email already registered', 409);
 
   const hashedPassword = await bcrypt.hash(input.password, SALT_ROUNDS);
@@ -107,9 +108,7 @@ async function generateTokenPair(user: IUserDocument): Promise<TokenPair> {
   return { accessToken, refreshToken };
 }
 
-export async function login(
-  input: LoginInput,
-): Promise<{ user: IUserDocument; tokens: TokenPair }> {
+export async function login(input: LoginInput): Promise<TokensDto> {
   const user = await User.findOne({ email: input.email }).select('+password');
 
   if (!user) {
@@ -127,7 +126,7 @@ export async function login(
 
   const tokens = await generateTokenPair(user);
 
-  return { user, tokens };
+  return tokens;
 }
 
 export async function refreshTokens(refreshToken: string): Promise<TokensDto> {

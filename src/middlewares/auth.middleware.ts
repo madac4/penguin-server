@@ -19,6 +19,7 @@ export const authenticate = async (
     const payload = verifyAccessToken(token);
     const user = await User.findById(payload.userId);
     if (!user) return next(new ErrorHandler('User not found', 401));
+
     req.user = user;
     next();
   } catch {

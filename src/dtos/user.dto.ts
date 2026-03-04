@@ -8,6 +8,7 @@ export interface UserDto {
   firstName: string;
   lastName: string;
   email: string;
+  pendingEmail?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -20,6 +21,7 @@ export function toUserDto(user: IUserDocument): UserDto {
     firstName: user.firstName,
     lastName: user.lastName,
     email: user.email,
+    pendingEmail: user.pendingEmail,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };
