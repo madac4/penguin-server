@@ -1,1 +1,0 @@
-//# sourceMappingURL=model3d.controller.d.ts.map
