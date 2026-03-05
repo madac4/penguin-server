@@ -1,12 +1,13 @@
-import { Router } from 'express';
-import * as profileController from '../../../controllers/profile.controller';
-import { authenticate } from '../../../middlewares/auth.middleware';
-import { validateBody } from '../../../middlewares/validate.middleware';
+import { Router } from 'express'
+import * as profileController from '../../../controllers/profile.controller'
+import { authenticate } from '../../../middlewares/auth.middleware'
+import { validateBody } from '../../../middlewares/validate.middleware'
 import {
-  changeEmailSchema,
-  changePasswordSchema,
-  updateProfileSchema,
-} from '../../../validators/profile.validator';
+	changeEmailSchema,
+	changePasswordSchema,
+	deleteAccountSchema,
+	updateProfileSchema,
+} from '../../../validators/profile.validator'
 
 const router = Router();
 
@@ -233,5 +234,52 @@ router.post(
   validateBody(changePasswordSchema),
   profileController.changePassword,
 );
+
+/**
+ * @openapi
+ * /api/v1/profile/delete-account:
+ *   delete:
+ *     tags:
+ *       - Profile
+ *     summary: Delete account
+ *     description: Deletes the user's account. Requires the current password for verification. All data associated with the account will be permanently removed.
+ *     operationId: deleteAccount
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Account deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Account deleted successfully
+ *       '401':
+ *         description: Current password is incorrect or not authenticated
+ */
+router.delete(
+  '/delete-account',
+  authenticate,
+  validateBody(deleteAccountSchema),
+  profileController.deleteAccount,
+);
+
 
 export default router;

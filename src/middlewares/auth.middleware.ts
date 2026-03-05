@@ -1,7 +1,7 @@
-import type { NextFunction, Request, Response } from 'express';
-import { User } from '../models/user.model';
-import { verifyAccessToken } from '../utils/jwt.util';
-import { ErrorHandler } from './error.middleware';
+import type { NextFunction, Request, Response } from 'express'
+import { User } from '../models/user.model'
+import { verifyAccessToken } from '../utils/jwt.util'
+import { ErrorHandler } from './error.middleware'
 
 export const authenticate = async (
   req: Request,
@@ -10,7 +10,7 @@ export const authenticate = async (
 ): Promise<void> => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
-    return next(new ErrorHandler('Access token is required', 401));
+    return next(new ErrorHandler('You are not authorized to perform this action', 401));
   }
 
   const token = authHeader.split(' ')[1];

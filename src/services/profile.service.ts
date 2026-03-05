@@ -1,12 +1,12 @@
-import { SALT_ROUNDS } from '@/utils/constants';
-import bcrypt from 'bcrypt';
-import { ErrorHandler } from '../middlewares/error.middleware';
-import { Token } from '../models/token.model';
-import { User, type IUserDocument } from '../models/user.model';
-import { TokenType } from '../utils/enums';
-import { generateConfirmationToken, hashToken } from '../utils/token.util';
-import type { ChangePasswordInput, UpdateProfileInput } from '../validators/profile.validator';
-import { sendEmailChangeEmail } from './email.service';
+import { SALT_ROUNDS } from '@/utils/constants'
+import bcrypt from 'bcrypt'
+import { ErrorHandler } from '../middlewares/error.middleware'
+import { Token } from '../models/token.model'
+import { User, type IUserDocument } from '../models/user.model'
+import { TokenType } from '../utils/enums'
+import { generateConfirmationToken, hashToken } from '../utils/token.util'
+import type { ChangePasswordInput, UpdateProfileInput } from '../validators/profile.validator'
+import { sendEmailChangeEmail } from './email.service'
 
 export async function getProfile(userId: string): Promise<IUserDocument> {
   const user = await User.findById(userId);
@@ -109,4 +109,16 @@ export async function changePassword(userId: string, input: ChangePasswordInput)
 
   await user.save();
   await Token.deleteMany({ userId: user._id, type: TokenType.RefreshToken });
+}
+
+
+export async function deleteAccount(userId: string, password: string): Promise<void> {
+  const user = await User.findById(userId);
+
+  if (!user) throw new ErrorHandler('User not found', 404);
+
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+  if (!isPasswordValid) throw new ErrorHandler('Current password is incorrect', 401);
+
+  await user.deleteOne();
 }

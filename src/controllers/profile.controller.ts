@@ -48,3 +48,8 @@ export const changePassword = CatchAsyncErrors(
     );
   },
 );
+
+export const deleteAccount = CatchAsyncErrors(async (req: Request, res: Response): Promise<void> => {
+  await profileService.deleteAccount(req.user!._id.toString(), req.body.password);
+  success(res, null, 200, 'Account deleted successfully');
+});	

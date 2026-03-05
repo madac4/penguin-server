@@ -9,3 +9,8 @@ export enum TokenType {
   PasswordReset = 'password_reset',
   EmailChange = 'email_change',
 }
+
+export enum Language {
+  En = 'en',
+  Ru = 'ru',
+}

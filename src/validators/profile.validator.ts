@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod'
 
 const passwordMinLength = 8;
 
@@ -28,7 +28,7 @@ export type ChangeEmailInput = z.infer<typeof changeEmailSchema>;
 
 export const changePasswordSchema = z
   .object({
-    currentPassword: z.string().min(1, 'Current password is required'),
+    currentPassword: z.string().min(passwordMinLength, 'Current password is required'),
     newPassword: z
       .string()
       .min(passwordMinLength, `New password must be at least ${passwordMinLength} characters`),
@@ -40,3 +40,10 @@ export const changePasswordSchema = z
   });
 
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+
+export const deleteAccountSchema = z.object({
+  currentPassword: z.string().min(passwordMinLength, `Current password must be at least ${passwordMinLength} characters`),
+});
+
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
