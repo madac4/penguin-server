@@ -1,19 +1,19 @@
-import { TokensDto } from '@/dtos/auth.dto';
-import { SALT_ROUNDS } from '@/utils/constants';
-import bcrypt from 'bcrypt';
-import { ErrorHandler } from '../middlewares/error.middleware';
-import { Token } from '../models/token.model';
-import { User, type IUserDocument } from '../models/user.model';
-import { TokenType } from '../utils/enums';
+import { TokensDto } from '@/dtos/auth.dto'
+import { SALT_ROUNDS } from '@/utils/constants'
+import bcrypt from 'bcrypt'
+import { ErrorHandler } from '../middlewares/error.middleware'
+import { Token } from '../models/token.model'
+import { User, type IUserDocument } from '../models/user.model'
+import { TokenType } from '../utils/enums'
 import {
-  signAccessToken,
-  signRefreshToken,
-  verifyRefreshToken,
-  type JwtPayload,
-} from '../utils/jwt.util';
-import { generateConfirmationToken, hashToken } from '../utils/token.util';
-import type { LoginInput, RegisterInput, ResetPasswordInput } from '../validators/auth.validator';
-import { sendConfirmationEmail, sendPasswordResetEmail } from './email.service';
+	signAccessToken,
+	signRefreshToken,
+	verifyRefreshToken,
+	type JwtPayload,
+} from '../utils/jwt.util'
+import { generateConfirmationToken, hashToken } from '../utils/token.util'
+import type { LoginInput, RegisterInput, ResetPasswordInput } from '../validators/auth.validator'
+import { sendConfirmationEmail, sendPasswordResetEmail } from './email.service'
 
 export async function register(input: RegisterInput): Promise<void> {
   const existingEmail = await User.findOne({ email: input.email });
@@ -124,6 +124,10 @@ export async function login(input: LoginInput): Promise<TokensDto> {
     throw new ErrorHandler('Please confirm your email before logging in', 403);
   }
 
+  if (user.isBlocked) {
+    throw new ErrorHandler('Your account has been blocked', 403);
+  }
+
   const tokens = await generateTokenPair(user);
 
   return tokens;
@@ -154,6 +158,11 @@ export async function refreshTokens(refreshToken: string): Promise<TokensDto> {
   const user = await User.findById(payload.userId);
   if (!user) {
     throw new ErrorHandler('User not found', 404);
+  }
+
+  if (user.isBlocked) {
+    await Token.deleteMany({ userId: user._id, type: TokenType.RefreshToken });
+    throw new ErrorHandler('Your account has been blocked', 403);
   }
 
   const tokens = await generateTokenPair(user);

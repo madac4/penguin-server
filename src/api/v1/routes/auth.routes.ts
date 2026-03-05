@@ -1,14 +1,14 @@
-import { Router } from 'express';
-import * as authController from '../../../controllers/auth.controller';
-import { validateBody } from '../../../middlewares/validate.middleware';
+import { Router } from 'express'
+import * as authController from '../../../controllers/auth.controller'
+import { validateBody } from '../../../middlewares/validate.middleware'
 import {
-  forgotPasswordSchema,
-  loginSchema,
-  refreshTokenSchema,
-  registerSchema,
-  resendConfirmationSchema,
-  resetPasswordSchema,
-} from '../../../validators/auth.validator';
+	forgotPasswordSchema,
+	loginSchema,
+	refreshTokenSchema,
+	registerSchema,
+	resendConfirmationSchema,
+	resetPasswordSchema,
+} from '../../../validators/auth.validator'
 
 const router = Router();
 
@@ -34,18 +34,11 @@ const router = Router();
  *               - firstName
  *               - lastName
  *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *                 minLength: 8
- *               confirmPassword:
- *                 type: string
- *               firstName:
- *                 type: string
- *               lastName:
- *                 type: string
+ *               email: {type: string, format: email, example: user@example.com}
+ *               password: {type: string, minLength: 8, example: secret123}
+ *               confirmPassword: {type: string, example: secret123}
+ *               firstName: {type: string, example: John}
+ *               lastName: {type: string, example: Doe}
  *     responses:
  *       '201':
  *         description: User created — confirmation email sent
@@ -54,12 +47,8 @@ const router = Router();
  *             schema:
  *               type: object
  *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: User created successfully, confirmation email sent
+ *                 success: {type: boolean, example: true}
+ *                 message: {type: string, example: User created successfully, confirmation email sent}
  *       '400':
  *         description: Validation failed
  *       '409':
@@ -86,13 +75,8 @@ router.post('/register', validateBody(registerSchema), authController.register);
  *               - email
  *               - password
  *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 example: user@example.com
- *               password:
- *                 type: string
- *                 example: secret123
+ *               email: {type: string, format: email, example: user@example.com}
+ *               password: {type: string, example: secret123}
  *     responses:
  *       '200':
  *         description: Login successful
@@ -110,10 +94,8 @@ router.post('/register', validateBody(registerSchema), authController.register);
  *                 data:
  *                   type: object
  *                   properties:
- *                         accessToken:
- *                           type: string
- *                         refreshToken:
- *                           type: string
+ *                         accessToken: {type: string, example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}
+ *                         refreshToken: {type: string, example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}
  *       '401':
  *         description: Invalid email or password
  *       '403':
@@ -139,8 +121,7 @@ router.post('/login', validateBody(loginSchema), authController.login);
  *             required:
  *               - refreshToken
  *             properties:
- *               refreshToken:
- *                 type: string
+ *               refreshToken: {type: string, example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}
  *     responses:
  *       '200':
  *         description: Tokens refreshed
@@ -158,15 +139,8 @@ router.post('/login', validateBody(loginSchema), authController.login);
  *                 data:
  *                   type: object
  *                   properties:
- *                     user:
- *                       $ref: '#/components/schemas/UserDto'
- *                     tokens:
- *                       type: object
- *                       properties:
- *                         accessToken:
- *                           type: string
- *                         refreshToken:
- *                           type: string
+*                         accessToken: {type: string, example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}
+*                         refreshToken: {type: string, example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}
  *       '401':
  *         description: Invalid or expired refresh token
  */
@@ -190,8 +164,7 @@ router.post('/refresh-token', validateBody(refreshTokenSchema), authController.r
  *             required:
  *               - refreshToken
  *             properties:
- *               refreshToken:
- *                 type: string
+ *               refreshToken: {type: string, example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}
  *     responses:
  *       '200':
  *         description: Logged out successfully
@@ -216,9 +189,7 @@ router.post('/logout', validateBody(refreshTokenSchema), authController.logout);
  *             required:
  *               - email
  *             properties:
- *               email:
- *                 type: string
- *                 format: email
+ *               email: {type: string, format: email, example: user@example.com}
  *     responses:
  *       '200':
  *         description: If the email exists, a reset link has been sent
@@ -245,13 +216,9 @@ router.post('/forgot-password', validateBody(forgotPasswordSchema), authControll
  *               - password
  *               - confirmPassword
  *             properties:
- *               token:
- *                 type: string
- *               password:
- *                 type: string
- *                 minLength: 8
- *               confirmPassword:
- *                 type: string
+ *               token: {type: string, example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}
+ *               password: {type: string, minLength: 8, example: secret123}
+ *               confirmPassword: {type: string, example: secret123}
  *     responses:
  *       '200':
  *         description: Password reset successfully

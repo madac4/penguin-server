@@ -1,5 +1,6 @@
 import { toCategoryDto, type CategoryDto, type CategoryTreeDto } from '@/dtos/category.dto'
 import type { PaginatedDto } from '@/dtos/common.dto'
+import { DEFAULT_FUZZY_THRESHOLD, fuzzyScore } from '@/utils/fuzzy.util'
 import { paginatedResult, parsePagination } from '@/utils/pagination.util'
 import { slugify } from '@/utils/slugify.util'
 import { ErrorHandler } from '../middlewares/error.middleware'
@@ -56,12 +57,12 @@ export async function getCategoryById(id: string): Promise<CategoryDto> {
   return toCategoryDto(category);
 }
 
-// ─── List (paginated, filterable, bilingual search) ──────────────────────────
+// ─── List (paginated, filterable, fuzzy search) ──────────────────────────────
 
 export async function listCategories(
   query: ListCategoriesInput,
 ): Promise<PaginatedDto<CategoryDto>> {
-  const { page, limit, skip } = parsePagination(query);
+  const { page, limit } = parsePagination(query);
 
   const filter: Record<string, unknown> = {};
 
@@ -73,16 +74,41 @@ export async function listCategories(
     filter.parent = query.parent === 'null' ? null : query.parent;
   }
 
+  // ── Fuzzy search path ──────────────────────────────────────────────────────
   if (query.search) {
-    const escapedSearch = query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(escapedSearch, 'i');
-    filter.$or = [
-      { 'name.en': regex },
-      { 'name.ru': regex },
-      { 'description.en': regex },
-      { 'description.ru': regex },
-    ];
+    const needle = query.search;
+
+    const allItems = await Category.find(filter)
+      .sort({ sortOrder: 1, createdAt: -1 })
+      .lean();
+
+    const scored = allItems
+      .map((item) => {
+        const best = Math.max(
+          fuzzyScore(needle, item.name.en),
+          fuzzyScore(needle, item.name.ru),
+          fuzzyScore(needle, item.description?.en ?? ''),
+          fuzzyScore(needle, item.description?.ru ?? ''),
+        );
+        return { item, score: best };
+      })
+      .filter(({ score }) => score >= DEFAULT_FUZZY_THRESHOLD)
+      .sort((a, b) => b.score - a.score);
+
+    const total = scored.length;
+    const start = (page - 1) * limit;
+    const paged = scored.slice(start, start + limit);
+
+    return paginatedResult(
+      paged.map(({ item }) => toCategoryDto(item as unknown as ICategoryDocument)),
+      total,
+      page,
+      limit,
+    );
   }
+
+  // ── Standard (non-search) path ─────────────────────────────────────────────
+  const skip = (page - 1) * limit;
 
   const [items, total] = await Promise.all([
     Category.find(filter).sort({ sortOrder: 1, createdAt: -1 }).skip(skip).limit(limit).lean(),

@@ -1,5 +1,5 @@
-import mongoose, { Schema, model, type Document, type Model } from 'mongoose';
-import { Role } from '../utils/enums';
+import mongoose, { Schema, model, type Document, type Model } from 'mongoose'
+import { Role } from '../utils/enums'
 
 export interface IUser {
   role: Role;
@@ -9,6 +9,7 @@ export interface IUser {
   email: string;
   password: string;
   isEmailConfirmed: boolean;
+  isBlocked: boolean;
   pendingEmail?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -53,6 +54,10 @@ const userSchema = new Schema<IUserDocument>(
       select: false,
     },
     isEmailConfirmed: {
+      type: Boolean,
+      default: false,
+    },
+    isBlocked: {
       type: Boolean,
       default: false,
     },

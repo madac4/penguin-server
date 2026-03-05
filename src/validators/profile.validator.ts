@@ -1,6 +1,5 @@
+import { PASSWORD_MIN_LENGTH } from '@/utils/constants'
 import { z } from 'zod'
-
-const passwordMinLength = 8;
 
 export const updateProfileSchema = z.object({
   username: z
@@ -28,10 +27,10 @@ export type ChangeEmailInput = z.infer<typeof changeEmailSchema>;
 
 export const changePasswordSchema = z
   .object({
-    currentPassword: z.string().min(passwordMinLength, 'Current password is required'),
+    currentPassword: z.string().min(PASSWORD_MIN_LENGTH, 'Current password is required'),
     newPassword: z
       .string()
-      .min(passwordMinLength, `New password must be at least ${passwordMinLength} characters`),
+      .min(PASSWORD_MIN_LENGTH, `New password must be at least ${PASSWORD_MIN_LENGTH} characters`),
     confirmNewPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmNewPassword, {
@@ -43,7 +42,7 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 
 export const deleteAccountSchema = z.object({
-  currentPassword: z.string().min(passwordMinLength, `Current password must be at least ${passwordMinLength} characters`),
+  currentPassword: z.string().min(PASSWORD_MIN_LENGTH, `Current password must be at least ${PASSWORD_MIN_LENGTH} characters`),
 });
 
 export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;

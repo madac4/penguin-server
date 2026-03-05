@@ -113,7 +113,7 @@ export async function changePassword(userId: string, input: ChangePasswordInput)
 
 
 export async function deleteAccount(userId: string, password: string): Promise<void> {
-  const user = await User.findById(userId);
+  const user = await User.findById(userId).select('+password');
 
   if (!user) throw new ErrorHandler('User not found', 404);
 

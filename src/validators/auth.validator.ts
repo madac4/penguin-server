@@ -1,13 +1,12 @@
-import { z } from 'zod';
-
-const passwordMinLength = 8;
+import { PASSWORD_MIN_LENGTH } from '@/utils/constants'
+import { z } from 'zod'
 
 export const registerSchema = z
   .object({
     email: z.email('Invalid email address').toLowerCase().trim(),
     password: z
       .string()
-      .min(passwordMinLength, `Password must be at least ${passwordMinLength} characters`),
+      .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`),
     confirmPassword: z.string(),
     firstName: z.string().min(1, 'First name is required').trim(),
     lastName: z.string().min(1, 'Last name is required').trim(),
@@ -49,7 +48,7 @@ export const resetPasswordSchema = z
     token: z.string().min(1, 'Reset token is required'),
     password: z
       .string()
-      .min(passwordMinLength, `Password must be at least ${passwordMinLength} characters`),
+      .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {

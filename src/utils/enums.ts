@@ -14,3 +14,8 @@ export enum Language {
   En = 'en',
   Ru = 'ru',
 }
+
+export enum UploadFolder {
+	Categories = 'categories',
+	Users = 'users',
+}

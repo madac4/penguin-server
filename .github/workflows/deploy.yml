@@ -6,7 +6,7 @@ on:
 
 jobs:
   ci:
-    name: Typecheck & Build
+    name: Lint, Test & Build
     runs-on: ubuntu-latest
 
     steps:
@@ -27,6 +27,11 @@ jobs:
 
       - name: Typecheck
         run: yarn tsc --noEmit
+
+      - name: Test
+        run: yarn test
+        env:
+          NODE_ENV: test
 
       - name: Build
         run: yarn build
