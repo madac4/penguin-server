@@ -1,19 +1,7 @@
-import mongoose, { Schema, model, type Document, type Model, type Types } from 'mongoose'
+import mongoose, { Schema, model, type Document, type Model, type Types } from 'mongoose';
+import { translatedFieldSchema, type ITranslatedField } from './shared.schema';
 
-// ─── i18n Translated Field ───────────────────────────────────────────────────
-
-export interface ITranslatedField {
-  en: string;
-  ru: string;
-}
-
-const translatedFieldSchema = new Schema<ITranslatedField>(
-  {
-    en: { type: String, required: true, trim: true },
-    ru: { type: String, required: true, trim: true },
-  },
-  { _id: false },
-);
+export type { ITranslatedField } from './shared.schema';
 
 // ─── Category ─────────────────────────────────────────────────────────────────
 

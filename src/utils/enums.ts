@@ -15,7 +15,14 @@ export enum Language {
   Ru = 'ru',
 }
 
+export enum MediaType {
+  Document = 'document',
+  Image = 'image',
+  Model = 'model',
+}
+
 export enum UploadFolder {
-	Categories = 'categories',
-	Users = 'users',
+  Categories = 'categories',
+  Products = 'products',
+  Users = 'users',
 }

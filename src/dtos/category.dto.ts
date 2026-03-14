@@ -1,4 +1,5 @@
-import type { ICategoryDocument, ITranslatedField } from '../models/category.model';
+import type { ICategoryDocument } from '../models/category.model';
+import type { ITranslatedField } from '../models/shared.schema';
 
 export interface CategoryDto {
   id: string;

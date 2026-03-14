@@ -1,19 +1,16 @@
-import { toCategoryDto, type CategoryDto, type CategoryTreeDto } from '@/dtos/category.dto'
-import type { PaginatedDto } from '@/dtos/common.dto'
-import { DEFAULT_FUZZY_THRESHOLD, fuzzyScore } from '@/utils/fuzzy.util'
-import { paginatedResult, parsePagination } from '@/utils/pagination.util'
-import { slugify } from '@/utils/slugify.util'
-import { ErrorHandler } from '../middlewares/error.middleware'
-import {
-	Category,
-	type ICategoryDocument,
-	type ITranslatedField,
-} from '../models/category.model'
+import { toCategoryDto, type CategoryDto, type CategoryTreeDto } from '@/dtos/category.dto';
+import type { PaginatedDto } from '@/dtos/common.dto';
+import { DEFAULT_FUZZY_THRESHOLD, fuzzyScore } from '@/utils/fuzzy.util';
+import { paginatedResult, parsePagination } from '@/utils/pagination.util';
+import { slugify } from '@/utils/slugify.util';
+import { ErrorHandler } from '../middlewares/error.middleware';
+import { Category, type ICategoryDocument } from '../models/category.model';
+import type { ITranslatedField } from '../models/shared.schema';
 import type {
-	CreateCategoryInput,
-	ListCategoriesInput,
-	UpdateCategoryInput,
-} from '../validators/category.validator'
+  CreateCategoryInput,
+  ListCategoriesInput,
+  UpdateCategoryInput,
+} from '../validators/category.validator';
 
 // ─── Create ──────────────────────────────────────────────────────────────────
 
@@ -78,9 +75,7 @@ export async function listCategories(
   if (query.search) {
     const needle = query.search;
 
-    const allItems = await Category.find(filter)
-      .sort({ sortOrder: 1, createdAt: -1 })
-      .lean();
+    const allItems = await Category.find(filter).sort({ sortOrder: 1, createdAt: -1 }).lean();
 
     const scored = allItems
       .map((item) => {
@@ -125,10 +120,7 @@ export async function listCategories(
 
 // ─── Update ──────────────────────────────────────────────────────────────────
 
-export async function updateCategory(
-  id: string,
-  input: UpdateCategoryInput,
-): Promise<CategoryDto> {
+export async function updateCategory(id: string, input: UpdateCategoryInput): Promise<CategoryDto> {
   const category = await Category.findById(id);
 
   if (!category) throw new ErrorHandler('Category not found', 404);
@@ -210,9 +202,7 @@ export async function getCategoryTree(): Promise<CategoryTreeDto[]> {
     .sort({ sortOrder: 1, createdAt: -1 })
     .lean();
 
-  const dtos = allCategories.map((cat) =>
-    toCategoryDto(cat as unknown as ICategoryDocument),
-  );
+  const dtos = allCategories.map((cat) => toCategoryDto(cat as unknown as ICategoryDocument));
 
   const map = new Map<string, CategoryTreeDto>();
   const roots: CategoryTreeDto[] = [];
