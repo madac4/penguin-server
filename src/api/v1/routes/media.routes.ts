@@ -6,6 +6,7 @@ import { authenticate } from '../../../middlewares/auth.middleware';
 import { authorize } from '../../../middlewares/role.middleware';
 import { validateBody, validateQuery } from '../../../middlewares/validate.middleware';
 import { Role } from '../../../utils/enums';
+import { getMediaType } from '../../../utils/file.util';
 import {
   batchDeleteMediaSchema,
   listMediaSchema,
@@ -14,17 +15,27 @@ import {
 
 const router = Router();
 
-// ─── Multer setup (accepts any supported file type) ──────────────────────────
+// ─── Multer setup ────────────────────────────────────────────────────────────
 
 const storage = multer.memoryStorage();
 
+const fileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
+  if (getMediaType(file.mimetype, file.originalname)) {
+    cb(null, true);
+  } else {
+    cb(new Error(`Unsupported file type: ${file.mimetype}`));
+  }
+};
+
 const uploadSingle = multer({
   storage,
+  fileFilter,
   limits: { fileSize: 100 * 1024 * 1024 },
 }).single('file') as unknown as RequestHandler;
 
 const uploadMultiple = multer({
   storage,
+  fileFilter,
   limits: { fileSize: 100 * 1024 * 1024 },
 }).array('files', 20) as unknown as RequestHandler;
 

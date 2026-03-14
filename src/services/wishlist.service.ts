@@ -35,10 +35,12 @@ export async function addToWishlist(
   wishlist.products.push({ productId, addedAt: new Date() } as any);
   await wishlist.save();
 
-  const likeCount = product.likeCount + 1;
-  await Product.updateOne({ _id: productId }, { likeCount });
-
-  return { likeCount };
+  const updated = await Product.findOneAndUpdate(
+    { _id: productId },
+    { $inc: { likeCount: 1 } },
+    { new: true, projection: { likeCount: 1 } },
+  );
+  return { likeCount: updated?.likeCount ?? product.likeCount + 1 };
 }
 
 // ─── Remove from Wishlist ────────────────────────────────────────────────────
@@ -59,10 +61,12 @@ export async function removeFromWishlist(
   wishlist.products.splice(idx, 1);
   await wishlist.save();
 
-  const likeCount = Math.max(0, product.likeCount - 1);
-  await Product.updateOne({ _id: productId }, { likeCount });
-
-  return { likeCount };
+  const updated = await Product.findOneAndUpdate(
+    { _id: productId },
+    [{ $set: { likeCount: { $max: [0, { $subtract: ['$likeCount', 1] }] } } }],
+    { new: true, projection: { likeCount: 1 } },
+  );
+  return { likeCount: updated?.likeCount ?? Math.max(0, product.likeCount - 1) };
 }
 
 // ─── Toggle Wishlist ─────────────────────────────────────────────────────────
@@ -81,16 +85,22 @@ export async function toggleWishlist(
   if (idx !== -1) {
     wishlist.products.splice(idx, 1);
     await wishlist.save();
-    const likeCount = Math.max(0, product.likeCount - 1);
-    await Product.updateOne({ _id: productId }, { likeCount });
-    return { added: false, likeCount };
+    const updated = await Product.findOneAndUpdate(
+      { _id: productId },
+      [{ $set: { likeCount: { $max: [0, { $subtract: ['$likeCount', 1] }] } } }],
+      { new: true, projection: { likeCount: 1 } },
+    );
+    return { added: false, likeCount: updated?.likeCount ?? Math.max(0, product.likeCount - 1) };
   }
 
   wishlist.products.push({ productId, addedAt: new Date() } as any);
   await wishlist.save();
-  const likeCount = product.likeCount + 1;
-  await Product.updateOne({ _id: productId }, { likeCount });
-  return { added: true, likeCount };
+  const updated = await Product.findOneAndUpdate(
+    { _id: productId },
+    { $inc: { likeCount: 1 } },
+    { new: true, projection: { likeCount: 1 } },
+  );
+  return { added: true, likeCount: updated?.likeCount ?? product.likeCount + 1 };
 }
 
 // ─── Get User Wishlist (paginated, returns products) ─────────────────────────

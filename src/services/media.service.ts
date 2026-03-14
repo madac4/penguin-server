@@ -1,19 +1,11 @@
 import type { PaginatedDto } from '@/dtos/common.dto';
 import { toMediaDto, type MediaDto } from '@/dtos/media.dto';
 import { paginatedResult, parsePagination } from '@/utils/pagination.util';
-import { storageConfig } from '../config/storage.config';
 import { ErrorHandler } from '../middlewares/error.middleware';
 import { Media, type IMediaDocument } from '../models/media.model';
 import { getMediaType } from '../utils/file.util';
 import type { ListMediaInput, UpdateMediaInput } from '../validators/media.validator';
 import * as uploadService from './upload.service';
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function extractKeyFromUrl(url: string): string {
-  const publicUrl = storageConfig.publicUrl.replace(/\/+$/, '');
-  return url.slice(publicUrl.length + 1);
-}
 
 // ─── Upload Single ───────────────────────────────────────────────────────────
 
@@ -24,12 +16,13 @@ export async function uploadMedia(
   alt = '',
 ): Promise<MediaDto> {
   const mediaType = getMediaType(file.mimetype, file.originalname);
+
   if (!mediaType) {
     throw new ErrorHandler('Unsupported file type', 400);
   }
 
   const url = await uploadService.uploadFile(file, folder);
-  const key = extractKeyFromUrl(url);
+  const key = uploadService.extractKeyFromUrl(url);
 
   const media = await Media.create({
     filename: file.originalname,
