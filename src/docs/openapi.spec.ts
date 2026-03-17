@@ -95,6 +95,20 @@ export const baseSpec = {
           updatedAt: { type: 'string', format: 'date-time' },
         },
       },
+	  PaginatedUsersDto: {
+		type: 'object',
+		properties: {
+			id: { type: 'string' },
+			role: { type: 'string', enum: ['User', 'Administrator'] },
+			username: { type: 'string' },
+          	firstName: { type: 'string' },
+          	lastName: { type: 'string' },
+          	email: { type: 'string', format: 'email' },
+			isBlocked: { type: 'boolean' },
+			createdAt: { type: 'string', format: 'date-time' },
+			updatedAt: { type: 'string', format: 'date-time' },
+		}
+	  }
     },
   },
   paths: {},

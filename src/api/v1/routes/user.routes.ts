@@ -54,6 +54,32 @@ router.use(authenticate, authorize(Role.Administrator))
  *     responses:
  *       '200':
  *         description: Paginated users list
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: OK
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     users:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/PaginatedUsersDto'
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
  */
 router.get('/', validateQuery(listUsersSchema), userController.listUsers)
 
@@ -77,6 +103,19 @@ router.get('/', validateQuery(listUsersSchema), userController.listUsers)
  *     responses:
  *       '200':
  *         description: User details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: OK
+ *                 data:
+ *                   $ref: '#/components/schemas/UserDto'
  *       '404':
  *         description: User not found
  */
@@ -118,6 +157,19 @@ router.get('/:id', userController.getUserById)
  *     responses:
  *       '200':
  *         description: User updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: User updated successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/UserDto'
  *       '404':
  *         description: User not found
  *       '409':
@@ -160,6 +212,20 @@ router.patch('/:id', validateBody(updateUserSchema), userController.updateUser)
  *     responses:
  *       '200':
  *         description: Password changed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: User password changed successfully
+ *                 data:
+ *                   type: object
+ *                   nullable: true
  *       '404':
  *         description: User not found
  */
@@ -189,6 +255,19 @@ router.patch(
  *     responses:
  *       '200':
  *         description: User block status toggled
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: User has been blocked
+ *                 data:
+ *                   $ref: '#/components/schemas/UserDto'
  *       '404':
  *         description: User not found
  */
@@ -214,6 +293,20 @@ router.patch('/:id/block', userController.toggleBlockUser)
  *     responses:
  *       '200':
  *         description: User deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: User deleted successfully
+ *                 data:
+ *                   type: object
+ *                   nullable: true
  *       '404':
  *         description: User not found
  */

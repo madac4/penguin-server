@@ -1,3 +1,4 @@
+import { toUserDto, toUserDtoList, UserDto } from '@/dtos/user.dto'
 import { SALT_ROUNDS } from '@/utils/constants'
 import bcrypt from 'bcrypt'
 import { ErrorHandler } from '../middlewares/error.middleware'
@@ -11,7 +12,7 @@ import type {
 } from '../validators/user.validator'
 
 interface PaginatedUsers {
-  users: IUserDocument[]
+  users: UserDto[]
   total: number
   page: number
   limit: number
@@ -44,7 +45,7 @@ export async function listUsers(query: ListUsersInput): Promise<PaginatedUsers> 
   ])
 
   return {
-    users,
+    users: toUserDtoList(users),
     total,
     page,
     limit,
@@ -52,13 +53,13 @@ export async function listUsers(query: ListUsersInput): Promise<PaginatedUsers> 
   }
 }
 
-export async function getUserById(id: string): Promise<IUserDocument> {
+export async function getUserById(id: string): Promise<UserDto> {
   const user = await User.findById(id)
   if (!user) throw new ErrorHandler('User not found', 404)
-  return user
+  return toUserDto(user)
 }
 
-export async function updateUser(id: string, input: UpdateUserInput): Promise<IUserDocument> {
+export async function updateUser(id: string, input: UpdateUserInput): Promise<UserDto> {
   const user = await User.findById(id)
   if (!user) throw new ErrorHandler('User not found', 404)
 
@@ -73,7 +74,7 @@ export async function updateUser(id: string, input: UpdateUserInput): Promise<IU
   if (input.role !== undefined) user.role = input.role
 
   await user.save()
-  return user
+  return toUserDto(user)
 }
 
 export async function changeUserPassword(
@@ -89,7 +90,7 @@ export async function changeUserPassword(
   await Token.deleteMany({ userId: user._id, type: TokenType.RefreshToken })
 }
 
-export async function toggleBlockUser(id: string): Promise<IUserDocument> {
+export async function toggleBlockUser(id: string): Promise<UserDto> {
   const user = await User.findById(id)
   if (!user) throw new ErrorHandler('User not found', 404)
 
@@ -100,7 +101,7 @@ export async function toggleBlockUser(id: string): Promise<IUserDocument> {
     await Token.deleteMany({ userId: user._id, type: TokenType.RefreshToken })
   }
 
-  return user
+  return toUserDto(user)
 }
 
 export async function deleteUser(id: string): Promise<void> {
