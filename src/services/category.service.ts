@@ -1,16 +1,17 @@
-import { toCategoryDto, type CategoryDto, type CategoryTreeDto } from '@/dtos/category.dto';
-import type { PaginatedDto } from '@/dtos/common.dto';
-import { DEFAULT_FUZZY_THRESHOLD, fuzzyScore } from '@/utils/fuzzy.util';
-import { paginatedResult, parsePagination } from '@/utils/pagination.util';
-import { slugify } from '@/utils/slugify.util';
-import { ErrorHandler } from '../middlewares/error.middleware';
-import { Category, type ICategoryDocument } from '../models/category.model';
-import type { ITranslatedField } from '../models/shared.schema';
+import { toCategoryDto, type CategoryDto, type CategoryTreeDto } from '@/dtos/category.dto'
+import type { PaginatedDto } from '@/dtos/common.dto'
+import { DEFAULT_FUZZY_THRESHOLD, fuzzyScore } from '@/utils/fuzzy.util'
+import { paginatedResult, parsePagination } from '@/utils/pagination.util'
+import { slugify } from '@/utils/slugify.util'
+import { ErrorHandler } from '../middlewares/error.middleware'
+import { Category, type ICategoryDocument } from '../models/category.model'
+import type { ITranslatedField } from '../models/shared.schema'
 import type {
-  CreateCategoryInput,
-  ListCategoriesInput,
-  UpdateCategoryInput,
-} from '../validators/category.validator';
+	CreateCategoryInput,
+	ListCategoriesInput,
+	UpdateCategoryInput,
+} from '../validators/category.validator'
+import * as uploadService from './upload.service'
 
 // ─── Create ──────────────────────────────────────────────────────────────────
 
@@ -193,6 +194,10 @@ export async function deleteCategory(id: string): Promise<void> {
   }
 
   await Category.findByIdAndDelete(id);
+
+  if (category.image) {
+	await uploadService.deleteFile(category.image).catch(() => {});
+  }
 }
 
 // ─── Tree ────────────────────────────────────────────────────────────────────
