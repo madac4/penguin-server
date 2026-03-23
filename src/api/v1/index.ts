@@ -5,6 +5,7 @@ import healthRouter from './routes/health.routes';
 import mediaRouter from './routes/media.routes';
 import productRouter from './routes/product.routes';
 import profileRouter from './routes/profile.routes';
+import propertyDefinitionRouter from './routes/property-definition.routes';
 import tagRouter from './routes/tag.routes';
 import userRouter from './routes/user.routes';
 import wishlistRouter from './routes/wishlist.routes';
@@ -19,6 +20,7 @@ v1Router.get('/', (_req: Request, res: Response) => {
   });
 });
 
+v1Router.use('/property-definitions', propertyDefinitionRouter);
 v1Router.use('/categories', categoryRouter);
 v1Router.use('/wishlist', wishlistRouter);
 v1Router.use('/products', productRouter);

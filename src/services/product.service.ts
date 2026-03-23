@@ -12,6 +12,8 @@ import { ErrorHandler } from '../middlewares/error.middleware';
 import type { ICategoryDocument } from '../models/category.model';
 import { Category } from '../models/category.model';
 import { Product, type IProductDocument } from '../models/product.model';
+import type { IPropertyDefinitionDocument } from '../models/property-definition.model';
+import { PropertyDefinition } from '../models/property-definition.model';
 import type { ITranslatedField } from '../models/shared.schema';
 import type { ITagDocument } from '../models/tag.model';
 import { Tag } from '../models/tag.model';
@@ -22,6 +24,21 @@ import type {
 } from '../validators/product.validator';
 import * as uploadService from './upload.service';
 import * as wishlistService from './wishlist.service';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function validatePropertyDefinitions(
+  properties: { definition: string; value: string }[],
+): Promise<void> {
+  if (properties.length === 0) return;
+
+  const definitionIds = [...new Set(properties.map((p) => p.definition))];
+  const count = await PropertyDefinition.countDocuments({ _id: { $in: definitionIds } });
+
+  if (count !== definitionIds.length) {
+    throw new ErrorHandler('One or more property definitions not found', 404);
+  }
+}
 
 // ─── Create ──────────────────────────────────────────────────────────────────
 
@@ -34,6 +51,8 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
     const tagCount = await Tag.countDocuments({ _id: { $in: input.tags } });
     if (tagCount !== input.tags.length) throw new ErrorHandler('One or more tags not found', 404);
   }
+
+  await validatePropertyDefinitions(input.properties);
 
   const slug: ITranslatedField = {
     en: slugify(input.name.en),
@@ -50,6 +69,7 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
     name: input.name,
     description: input.description,
     slug,
+    thumbnail: input.thumbnail,
     images: input.images,
     category: input.category,
     tags: input.tags,
@@ -67,7 +87,10 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
 export async function getProductById(id: string): Promise<ProductDetailDto> {
   const product = await Product.findById(id)
     .populate<{ category: ICategoryDocument }>('category')
-    .populate<{ tags: ITagDocument[] }>('tags');
+    .populate<{ tags: ITagDocument[] }>('tags')
+    .populate<{
+      properties: { definition: IPropertyDefinitionDocument; value: string }[];
+    }>('properties.definition');
 
   if (!product) throw new ErrorHandler('Product not found', 404);
 
@@ -171,17 +194,15 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
     if (input.description.ru !== undefined) product.description.ru = input.description.ru;
   }
 
+  if (input.thumbnail !== undefined) product.thumbnail = input.thumbnail;
   if (input.images !== undefined) product.images = input.images;
   if (input.price !== undefined) product.price = input.price;
   if (input.fileFormats !== undefined) product.fileFormats = input.fileFormats;
   if (input.isActive !== undefined) product.isActive = input.isActive;
 
-  if (input.properties) {
-    if (input.properties.size !== undefined) product.properties.size = input.properties.size;
-    if (input.properties.material !== undefined)
-      product.properties.material = input.properties.material;
-    if (input.properties.color !== undefined) product.properties.color = input.properties.color;
-    if (input.properties.weight !== undefined) product.properties.weight = input.properties.weight;
+  if (input.properties !== undefined) {
+    await validatePropertyDefinitions(input.properties);
+    product.properties = input.properties as unknown as typeof product.properties;
   }
 
   await product.save();
@@ -198,6 +219,10 @@ export async function deleteProduct(id: string): Promise<void> {
 
   if (product.images.length > 0) {
     await uploadService.deleteFiles(product.images).catch(() => {});
+  }
+
+  if (product.thumbnail) {
+    await uploadService.deleteFile(product.thumbnail).catch(() => {});
   }
 
   await wishlistService.removeAllForProduct(id);

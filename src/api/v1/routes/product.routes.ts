@@ -16,21 +16,33 @@ const router = Router();
  * @openapi
  * components:
  *   schemas:
- *     ProductProperties:
+ *     ProductPropertyInput:
+ *       type: object
+ *       required:
+ *         - definition
+ *         - value
+ *       properties:
+ *         definition:
+ *           type: string
+ *           description: Property definition ID
+ *         value:
+ *           type: string
+ *           description: Property value
+ *     ProductPropertyDto:
  *       type: object
  *       properties:
- *         size:
+ *         definition:
  *           type: string
- *           nullable: true
- *         material:
+ *           description: Property definition ID
+ *         value:
  *           type: string
- *           nullable: true
- *         color:
+ *     ProductPropertyDetailDto:
+ *       type: object
+ *       properties:
+ *         definition:
+ *           $ref: '#/components/schemas/PropertyDefinitionDto'
+ *         value:
  *           type: string
- *           nullable: true
- *         weight:
- *           type: string
- *           nullable: true
  *     ProductDto:
  *       type: object
  *       properties:
@@ -42,6 +54,9 @@ const router = Router();
  *           $ref: '#/components/schemas/TranslatedField'
  *         slug:
  *           $ref: '#/components/schemas/TranslatedField'
+ *         thumbnail:
+ *           type: string
+ *           description: Thumbnail image URL
  *         images:
  *           type: array
  *           items:
@@ -59,7 +74,9 @@ const router = Router();
  *         likeCount:
  *           type: integer
  *         properties:
- *           $ref: '#/components/schemas/ProductProperties'
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/ProductPropertyDto'
  *         fileFormats:
  *           type: array
  *           items:
@@ -83,6 +100,9 @@ const router = Router();
  *           $ref: '#/components/schemas/TranslatedField'
  *         slug:
  *           $ref: '#/components/schemas/TranslatedField'
+ *         thumbnail:
+ *           type: string
+ *           description: Thumbnail image URL
  *         images:
  *           type: array
  *           items:
@@ -100,7 +120,9 @@ const router = Router();
  *         likeCount:
  *           type: integer
  *         properties:
- *           $ref: '#/components/schemas/ProductProperties'
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/ProductPropertyDetailDto'
  *         fileFormats:
  *           type: array
  *           items:
@@ -194,7 +216,7 @@ router.get('/', validateQuery(listProductsSchema), productController.list);
  *     tags:
  *       - Products
  *     summary: Get product by ID
- *     description: Returns full product details with populated category and tags. Increments the view counter.
+ *     description: Returns full product details with populated category, tags, and property definitions. Increments the view counter.
  *     operationId: getProductById
  *     parameters:
  *       - in: path
@@ -246,6 +268,9 @@ router.get('/:id', productController.getById);
  *                 $ref: '#/components/schemas/TranslatedField'
  *               description:
  *                 $ref: '#/components/schemas/TranslatedField'
+ *               thumbnail:
+ *                 type: string
+ *                 description: Thumbnail image URL
  *               images:
  *                 type: array
  *                 items:
@@ -263,7 +288,10 @@ router.get('/:id', productController.getById);
  *                 default: 0
  *                 description: "Product price in sum. 0 = free."
  *               properties:
- *                 $ref: '#/components/schemas/ProductProperties'
+ *                 type: array
+ *                 items:
+ *                   $ref: '#/components/schemas/ProductPropertyInput'
+ *                 description: Dynamic product properties (definition ID + value)
  *               fileFormats:
  *                 type: array
  *                 items:
@@ -279,14 +307,15 @@ router.get('/:id', productController.getById);
  *             description:
  *               en: "An imitation of the iconic motion ring from the signature collection"
  *               ru: "Имитация культового кольца движения из фирменной коллекции"
+ *             thumbnail: "https://cdn.example.com/products/ring-thumb.webp"
  *             category: "60d5ec49f1b2c72b7c8e4a1b"
  *             tags: ["60d5ec49f1b2c72b7c8e4a1c"]
  *             price: 20.99
  *             properties:
- *               size: "56 EU / 7.5 US"
- *               material: "Resin"
- *               color: null
- *               weight: "15g"
+ *               - definition: "60d5ec49f1b2c72b7c8e4a1d"
+ *                 value: "56 EU / 7.5 US"
+ *               - definition: "60d5ec49f1b2c72b7c8e4a1e"
+ *                 value: "15g"
  *             fileFormats: ["STL", "AMF", "3DS", "3DM"]
  *     responses:
  *       '201':
@@ -309,7 +338,7 @@ router.get('/:id', productController.getById);
  *       '403':
  *         description: Insufficient permissions
  *       '404':
- *         description: Category or tag not found
+ *         description: Category, tag, or property definition not found
  *       '409':
  *         description: Product with this name already exists
  */
@@ -349,6 +378,9 @@ router.post(
  *                 $ref: '#/components/schemas/TranslatedField'
  *               description:
  *                 $ref: '#/components/schemas/TranslatedField'
+ *               thumbnail:
+ *                 type: string
+ *                 description: Thumbnail image URL
  *               images:
  *                 type: array
  *                 items:
@@ -362,7 +394,9 @@ router.post(
  *               price:
  *                 type: number
  *               properties:
- *                 $ref: '#/components/schemas/ProductProperties'
+ *                 type: array
+ *                 items:
+ *                   $ref: '#/components/schemas/ProductPropertyInput'
  *               fileFormats:
  *                 type: array
  *                 items:
@@ -390,7 +424,7 @@ router.post(
  *       '403':
  *         description: Insufficient permissions
  *       '404':
- *         description: Product, category, or tag not found
+ *         description: Product, category, tag, or property definition not found
  */
 router.put(
   '/:id',
@@ -407,7 +441,7 @@ router.put(
  *     tags:
  *       - Products
  *     summary: Delete a product
- *     description: Deletes a product and its associated likes. Images are also removed from storage. Requires Administrator role.
+ *     description: Deletes a product and removes it from all wishlists. Thumbnail and images are also removed from storage. Requires Administrator role.
  *     operationId: deleteProduct
  *     security:
  *       - bearerAuth: []

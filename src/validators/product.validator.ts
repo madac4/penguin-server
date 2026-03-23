@@ -15,28 +15,24 @@ const optionalTranslatedFieldSchema = z
   .optional()
   .default({ en: '', ru: '' });
 
-// ─── Product Properties ─────────────────────────────────────────────────────
+// ─── Product Property (definition ID + value) ───────────────────────────────
 
-const productPropertiesSchema = z
-  .object({
-    size: z.string().trim().nullable().optional().default(null),
-    material: z.string().trim().nullable().optional().default(null),
-    color: z.string().trim().nullable().optional().default(null),
-    weight: z.string().trim().nullable().optional().default(null),
-  })
-  .optional()
-  .default({ size: null, material: null, color: null, weight: null });
+const productPropertySchema = z.object({
+  definition: z.string().min(1, 'Property definition ID is required'),
+  value: z.string().min(1, 'Property value is required').trim(),
+});
 
 // ─── Create ──────────────────────────────────────────────────────────────────
 
 export const createProductSchema = z.object({
   name: translatedFieldSchema,
   description: optionalTranslatedFieldSchema,
+  thumbnail: z.string().trim().optional().default(''),
   images: z.array(z.string()).optional().default([]),
   category: z.string().min(1, 'Category is required'),
   tags: z.array(z.string()).optional().default([]),
   price: z.coerce.number().min(0).optional().default(0),
-  properties: productPropertiesSchema,
+  properties: z.array(productPropertySchema).optional().default([]),
   fileFormats: z.array(z.string().trim().toUpperCase()).optional().default([]),
   isActive: z.boolean().optional().default(true),
 });
@@ -53,18 +49,12 @@ export const updateProductSchema = z.object({
       ru: z.string().trim().optional(),
     })
     .optional(),
+  thumbnail: z.string().trim().optional(),
   images: z.array(z.string()).optional(),
   category: z.string().optional(),
   tags: z.array(z.string()).optional(),
   price: z.coerce.number().min(0).optional(),
-  properties: z
-    .object({
-      size: z.string().trim().nullable().optional(),
-      material: z.string().trim().nullable().optional(),
-      color: z.string().trim().nullable().optional(),
-      weight: z.string().trim().nullable().optional(),
-    })
-    .optional(),
+  properties: z.array(productPropertySchema).optional(),
   fileFormats: z.array(z.string().trim().toUpperCase()).optional(),
   isActive: z.boolean().optional(),
 });
