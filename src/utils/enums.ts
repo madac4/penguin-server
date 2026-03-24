@@ -24,5 +24,7 @@ export enum MediaType {
 export enum UploadFolder {
   Categories = 'categories',
   Products = 'products',
+  General = 'general',
   Users = 'users',
+  All = 'all',
 }

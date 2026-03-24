@@ -14,6 +14,7 @@ export type UploadMediaInput = z.infer<typeof uploadMediaSchema>;
 
 export const updateMediaSchema = z.object({
   alt: z.string().trim().optional(),
+  filename: z.string().trim().optional(),
 });
 
 export type UpdateMediaInput = z.infer<typeof updateMediaSchema>;
@@ -24,7 +25,7 @@ export const listMediaSchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
   search: z.string().trim().optional(),
-  folder: z.nativeEnum(UploadFolder).optional(),
+  folder: z.enum(UploadFolder).optional().default(UploadFolder.All),
   type: z.nativeEnum(MediaType).optional(),
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),

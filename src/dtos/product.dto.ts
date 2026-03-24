@@ -43,6 +43,8 @@ export interface ProductDetailDto extends Omit<ProductDto, 'category' | 'tags' |
 }
 
 export function toProductDto(doc: IProductDocument): ProductDto {
+  console.log(doc);
+
   return {
     id: doc._id.toString(),
     name: doc.name,

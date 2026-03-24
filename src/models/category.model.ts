@@ -22,7 +22,7 @@ export interface ICategoryDocument extends ICategory, Document {}
 const categorySchema = new Schema<ICategoryDocument>(
   {
     name: { type: translatedFieldSchema, required: true },
-    description: { type: translatedFieldSchema, default: { en: '', ru: '' } },
+    description: { type: translatedFieldSchema, required: false, default: { en: '', ru: '' } },
     slug: { type: translatedFieldSchema, required: true },
     parent: { type: Schema.Types.ObjectId, ref: 'Category', default: null },
     image: { type: String, default: null },

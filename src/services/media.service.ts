@@ -1,5 +1,6 @@
 import type { PaginatedDto } from '@/dtos/common.dto';
 import { toMediaDto, type MediaDto } from '@/dtos/media.dto';
+import { UploadFolder } from '@/utils/enums';
 import { paginatedResult, parsePagination } from '@/utils/pagination.util';
 import { ErrorHandler } from '../middlewares/error.middleware';
 import { Media, type IMediaDocument } from '../models/media.model';
@@ -64,7 +65,7 @@ export async function listMedia(query: ListMediaInput): Promise<PaginatedDto<Med
 
   const filter: Record<string, unknown> = {};
 
-  if (query.folder) filter.folder = query.folder;
+  if (query.folder !== UploadFolder.All) filter.folder = query.folder;
   if (query.type) filter.type = query.type;
 
   if (query.dateFrom || query.dateTo) {
@@ -98,6 +99,7 @@ export async function updateMedia(id: string, input: UpdateMediaInput): Promise<
   if (!media) throw new ErrorHandler('Media not found', 404);
 
   if (input.alt !== undefined) media.alt = input.alt;
+  if (input.filename !== undefined) media.filename = input.filename;
 
   await media.save();
   return toMediaDto(media);
