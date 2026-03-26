@@ -48,7 +48,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
 // ─── Get by ID ───────────────────────────────────────────────────────────────
 
 export async function getCategoryById(id: string): Promise<CategoryDto> {
-  const category = await Category.findById(id).populate('parent');
+  const category = await Category.findById(id);
 
   if (!category) throw new ErrorHandler('Category not found', 404);
 
