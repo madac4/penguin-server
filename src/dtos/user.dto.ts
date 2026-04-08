@@ -1,5 +1,5 @@
-import type { IUserDocument } from '../models/user.model';
-import type { Role } from '../utils/enums';
+import type { IUserDocument } from '../models/user.model'
+import type { Role } from '../utils/enums'
 
 export interface UserDto {
   id: string;
@@ -8,6 +8,8 @@ export interface UserDto {
   firstName: string;
   lastName: string;
   email: string;
+  pendingEmail?: string;
+  isBlocked: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -20,7 +22,26 @@ export function toUserDto(user: IUserDocument): UserDto {
     firstName: user.firstName,
     lastName: user.lastName,
     email: user.email,
+	isBlocked: user.isBlocked,
+    pendingEmail: user.pendingEmail,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };
 }
+
+export function toUserDtoList(users: IUserDocument[]): UserDto[] {
+	return users.map((user) => {
+		return {
+			id: user._id.toString(),
+			role: user.role,
+			username: user.username,
+			firstName: user.firstName,
+			lastName: user.lastName,
+			email: user.email,
+			isBlocked: user.isBlocked,
+			createdAt: user.createdAt.toISOString(),
+			updatedAt: user.updatedAt.toISOString(),
+		};
+	});
+}
+

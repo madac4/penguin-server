@@ -19,7 +19,7 @@ export async function sendConfirmationEmail(
   token: string,
   firstName: string,
 ): Promise<void> {
-  const confirmUrl = `${mailConfig.clientUrl}/confirm-email?token=${token}`;
+  const confirmUrl = `${mailConfig.clientUrl}/auth/confirm-email?token=${token}`;
 
   const html = await renderTemplate('confirm-email', {
     firstName,
@@ -45,7 +45,7 @@ export async function sendPasswordResetEmail(
   token: string,
   firstName: string,
 ): Promise<void> {
-  const resetUrl = `${mailConfig.clientUrl}/reset-password?token=${token}`;
+  const resetUrl = `${mailConfig.clientUrl}/auth/reset-password?token=${token}`;
 
   const html = await renderTemplate('reset-password', {
     firstName,
@@ -62,6 +62,33 @@ export async function sendPasswordResetEmail(
     from: mailConfig.from,
     to: email,
     subject: 'Reset your password — Penguin',
+    html,
+  });
+}
+
+export async function sendEmailChangeEmail(
+  newEmail: string,
+  token: string,
+  firstName: string,
+): Promise<void> {
+  const confirmUrl = `${mailConfig.clientUrl}/confirm-email-change?token=${token}`;
+
+  const html = await renderTemplate('confirm-email-change', {
+    firstName,
+    newEmail,
+    confirmUrl,
+  });
+
+  if (!mailConfig.resendApiKey) {
+    console.log(`\n📧 Email change confirmation → ${newEmail}`);
+    console.log(`   Link: ${confirmUrl}\n`);
+    return;
+  }
+
+  await resend.emails.send({
+    from: mailConfig.from,
+    to: newEmail,
+    subject: 'Confirm your new email — Penguin',
     html,
   });
 }
