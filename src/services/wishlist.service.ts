@@ -62,8 +62,8 @@ export async function removeFromWishlist(
   await wishlist.save();
 
   const updated = await Product.findOneAndUpdate(
-    { _id: productId },
-    [{ $set: { likeCount: { $max: [0, { $subtract: ['$likeCount', 1] }] } } }],
+    { _id: productId, likeCount: { $gt: 0 } },
+    { $inc: { likeCount: -1 } },
     { new: true, projection: { likeCount: 1 } },
   );
   return { likeCount: updated?.likeCount ?? Math.max(0, product.likeCount - 1) };
@@ -86,8 +86,8 @@ export async function toggleWishlist(
     wishlist.products.splice(idx, 1);
     await wishlist.save();
     const updated = await Product.findOneAndUpdate(
-      { _id: productId },
-      [{ $set: { likeCount: { $max: [0, { $subtract: ['$likeCount', 1] }] } } }],
+      { _id: productId, likeCount: { $gt: 0 } },
+      { $inc: { likeCount: -1 } },
       { new: true, projection: { likeCount: 1 } },
     );
     return { added: false, likeCount: updated?.likeCount ?? Math.max(0, product.likeCount - 1) };
