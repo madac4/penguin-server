@@ -24,7 +24,14 @@ export enum MediaType {
 export enum UploadFolder {
   Categories = 'categories',
   Products = 'products',
+  ProtectedProducts = 'protected/products',
   General = 'general',
   Users = 'users',
   All = 'all',
+}
+
+export enum SubscriptionStatus {
+  Active = 'Active',
+  Expired = 'Expired',
+  Cancelled = 'Cancelled',
 }

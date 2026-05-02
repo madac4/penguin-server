@@ -11,11 +11,14 @@ export const DOCUMENT_MIMES = ['application/pdf'];
 export const MODEL_MIMES = [
   'model/gltf-binary', // .glb
   'model/gltf+json', // .gltf
-  'application/octet-stream', // fallback for .glb/.obj/.fbx
+  'model/stl',
+  'application/sla',
+  'application/vnd.ms-pki.stl',
+  'application/octet-stream', // fallback for .glb/.obj/.fbx/.stl
 ];
 
 // Extensions accepted for 3D model files (used as fallback when MIME is octet-stream)
-export const MODEL_EXTENSIONS = ['.glb', '.gltf', '.obj', '.fbx'];
+export const MODEL_EXTENSIONS = ['.glb', '.gltf', '.obj', '.fbx', '.stl'];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

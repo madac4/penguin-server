@@ -11,6 +11,7 @@ import { slugify } from '@/utils/slugify.util';
 import { ErrorHandler } from '../middlewares/error.middleware';
 import type { ICategoryDocument } from '../models/category.model';
 import { Category } from '../models/category.model';
+import { CategoryFilter } from '../models/category-filter.model';
 import { Product, type IProductDocument } from '../models/product.model';
 import type { IPropertyDefinitionDocument } from '../models/property-definition.model';
 import { PropertyDefinition } from '../models/property-definition.model';
@@ -22,6 +23,7 @@ import type {
   ListProductsInput,
   UpdateProductInput,
 } from '../validators/product.validator';
+import * as subscriptionService from './subscription.service';
 import * as uploadService from './upload.service';
 import * as wishlistService from './wishlist.service';
 
@@ -40,6 +42,26 @@ async function validatePropertyDefinitions(
   }
 }
 
+async function validateFiltersBelongToCategory(
+  filterIds: string[],
+  categoryId: string,
+): Promise<void> {
+  if (filterIds.length === 0) return;
+
+  const unique = [...new Set(filterIds)];
+  const count = await CategoryFilter.countDocuments({
+    _id: { $in: unique },
+    category: categoryId,
+  });
+
+  if (count !== unique.length) {
+    throw new ErrorHandler(
+      'One or more filters are not found or do not belong to the selected category',
+      400,
+    );
+  }
+}
+
 // ─── Create ──────────────────────────────────────────────────────────────────
 
 export async function createProduct(input: CreateProductInput): Promise<ProductDto> {
@@ -53,6 +75,7 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
   }
 
   await validatePropertyDefinitions(input.properties);
+  await validateFiltersBelongToCategory(input.filters, input.category);
 
   const slug: ITranslatedField = {
     en: slugify(input.name.en),
@@ -71,11 +94,14 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
     slug,
     thumbnail: input.thumbnail,
     images: input.images,
+    fileUrl: input.fileUrl,
     category: input.category,
     tags: input.tags,
-    price: input.price,
+    isFree: input.isFree,
     properties: input.properties,
-    fileFormats: input.fileFormats,
+    filters: input.filters,
+    size: input.size,
+    weight: input.weight,
     isActive: input.isActive,
   });
 
@@ -90,7 +116,8 @@ export async function getProductById(id: string): Promise<ProductDetailDto> {
     .populate<{ tags: ITagDocument[] }>('tags')
     .populate<{
       properties: { definition: IPropertyDefinitionDocument; value: string }[];
-    }>('properties.definition');
+    }>('properties.definition')
+    .populate('filters');
 
   if (!product) throw new ErrorHandler('Product not found', 404);
 
@@ -106,8 +133,10 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
   const filter: Record<string, unknown> = {};
 
   if (query.isActive !== undefined) filter.isActive = query.isActive;
+  if (query.isFree !== undefined) filter.isFree = query.isFree;
   if (query.category) filter.category = query.category;
   if (query.tag) filter.tags = query.tag;
+  if (query.filters && query.filters.length > 0) filter.filters = { $all: query.filters };
 
   if (query.search) {
     const needle = query.search;
@@ -163,7 +192,11 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
   if (input.category) {
     const categoryExists = await Category.findById(input.category);
     if (!categoryExists) throw new ErrorHandler('Category not found', 404);
+    const categoryChanged = product.category.toString() !== input.category;
     product.category = input.category as unknown as typeof product.category;
+    if (categoryChanged && input.filters === undefined) {
+      product.filters = [] as unknown as typeof product.filters;
+    }
   }
 
   if (input.tags) {
@@ -196,8 +229,15 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
 
   if (input.thumbnail !== undefined) product.thumbnail = input.thumbnail;
   if (input.images !== undefined) product.images = input.images;
-  if (input.price !== undefined) product.price = input.price;
-  if (input.fileFormats !== undefined) product.fileFormats = input.fileFormats;
+  if (input.fileUrl !== undefined) {
+    if (product.fileUrl && product.fileUrl !== input.fileUrl) {
+      await uploadService.deleteFile(product.fileUrl).catch(() => {});
+    }
+    product.fileUrl = input.fileUrl;
+  }
+  if (input.isFree !== undefined) product.isFree = input.isFree;
+  if (input.size !== undefined) product.size = input.size;
+  if (input.weight !== undefined) product.weight = input.weight;
   if (input.isActive !== undefined) product.isActive = input.isActive;
 
   if (input.properties !== undefined) {
@@ -205,9 +245,36 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
     product.properties = input.properties as unknown as typeof product.properties;
   }
 
+  if (input.filters !== undefined) {
+    await validateFiltersBelongToCategory(input.filters, product.category.toString());
+    product.filters = input.filters as unknown as typeof product.filters;
+  }
+
   await product.save();
 
   return toProductDto(product);
+}
+
+// ─── Download (signed URL, gated by subscription credits) ────────────────────
+
+export async function requestDownload(
+  productId: string,
+  userId: string,
+): Promise<{ url: string }> {
+  const product = await Product.findById(productId);
+  if (!product) throw new ErrorHandler('Product not found', 404);
+  if (!product.fileUrl) throw new ErrorHandler('Product has no downloadable file', 404);
+
+  if (!product.isFree) {
+    const sub = await subscriptionService.consumeCredit(userId);
+    if (!sub) {
+      throw new ErrorHandler('No active subscription or download credits exhausted', 403);
+    }
+  }
+
+  const key = uploadService.extractKeyFromUrl(product.fileUrl);
+  const url = await uploadService.getSignedDownloadUrl(key);
+  return { url };
 }
 
 // ─── Delete ──────────────────────────────────────────────────────────────────
@@ -223,6 +290,10 @@ export async function deleteProduct(id: string): Promise<void> {
 
   if (product.thumbnail) {
     await uploadService.deleteFile(product.thumbnail).catch(() => {});
+  }
+
+  if (product.fileUrl) {
+    await uploadService.deleteFile(product.fileUrl).catch(() => {});
   }
 
   await wishlistService.removeAllForProduct(id);

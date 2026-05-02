@@ -1,9 +1,11 @@
 import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
+  GetObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { r2Client } from '../config/r2.client';
 import { storageConfig } from '../config/storage.config';
 import { ErrorHandler } from '../middlewares/error.middleware';
@@ -12,21 +14,23 @@ import { generateFileKey } from '../utils/file.util';
 
 const VALID_FOLDERS = new Set<string>(Object.values(UploadFolder));
 
+export function isProtectedFolder(folder: string): boolean {
+  return folder.startsWith('protected/');
+}
+
 // ─── Upload ──────────────────────────────────────────────────────────────────
 
 /**
  * Upload a multer file buffer to R2.
- * If `oldUrl` is provided, the old file is deleted before uploading the new one.
+ * If `oldRef` is provided (URL or key), the old object is deleted first.
  *
- * @param file   The multer file object
- * @param folder The R2 folder/prefix (e.g. 'categories')
- * @param oldUrl Optional URL of the file being replaced — will be deleted
- * @returns      The public URL of the uploaded file
+ * Public folders return a public URL; protected folders return the bare R2 key
+ * (no domain) so the value cannot be fetched directly even if the bucket leaks.
  */
 export async function uploadFile(
   file: Express.Multer.File,
   folder: string,
-  oldUrl?: string,
+  oldRef?: string,
 ): Promise<string> {
   if (!VALID_FOLDERS.has(folder)) {
     throw new ErrorHandler(
@@ -35,10 +39,8 @@ export async function uploadFile(
     );
   }
 
-  if (oldUrl) {
-    await deleteFile(oldUrl).catch(() => {
-      // Silently ignore if old file is already gone
-    });
+  if (oldRef) {
+    await deleteFile(oldRef).catch(() => {});
   }
 
   const key = generateFileKey(folder, file.originalname);
@@ -52,18 +54,22 @@ export async function uploadFile(
     }),
   );
 
+  if (isProtectedFolder(folder)) return key;
   return `${storageConfig.publicUrl}/${key}`;
 }
 
 /**
- * Extract the R2 object key from a public URL.
+ * Resolve the R2 object key from either a public URL or a bare key.
  */
-export function extractKeyFromUrl(fileUrl: string): string {
+export function extractKeyFromUrl(fileRef: string): string {
   const publicUrl = storageConfig.publicUrl.replace(/\/+$/, '');
-  if (!fileUrl.startsWith(publicUrl)) {
+  if (publicUrl && fileRef.startsWith(publicUrl)) {
+    return fileRef.slice(publicUrl.length + 1);
+  }
+  if (fileRef.includes('://')) {
     throw new ErrorHandler('Invalid file URL — does not match storage domain', 400);
   }
-  return fileUrl.slice(publicUrl.length + 1);
+  return fileRef.replace(/^\/+/, '');
 }
 
 /**
@@ -85,6 +91,20 @@ export async function deleteFile(fileUrl: string): Promise<void> {
  */
 export async function deleteFiles(fileUrls: string[]): Promise<void> {
   await Promise.all(fileUrls.map((url) => deleteFile(url)));
+}
+
+/**
+ * Generate a short-lived presigned download URL for a private R2 object.
+ *
+ * @param key       The R2 object key (e.g. `protected/products/abc.stl`)
+ * @param expiresIn TTL in seconds (default 300)
+ */
+export async function getSignedDownloadUrl(key: string, expiresIn = 300): Promise<string> {
+  return getSignedUrl(
+    r2Client,
+    new GetObjectCommand({ Bucket: storageConfig.bucket, Key: key }),
+    { expiresIn },
+  );
 }
 
 /**
