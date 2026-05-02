@@ -32,24 +32,8 @@ export const baseSpec = {
       description: 'CMS product entries (3D jewelry models)',
     },
     { name: 'Categories', description: 'Content taxonomy — categories' },
-    {
-      name: 'Collections',
-      description: 'Content taxonomy — curated collections',
-    },
     { name: 'Tags', description: 'Content taxonomy — flat tags' },
-    { name: 'Pages', description: 'CMS static pages' },
-    { name: 'Blog', description: 'CMS blog posts' },
     { name: 'Media', description: 'Media library — file uploads' },
-    { name: 'Banners', description: 'Promotional banners & hero slots' },
-    { name: 'Menus', description: 'Navigation menus & items' },
-    { name: 'SEO', description: 'Per-page SEO metadata' },
-    { name: 'Forms', description: 'Contact forms & submissions' },
-    { name: 'Redirects', description: '301/302 URL redirect rules' },
-    { name: 'Settings', description: 'Global site configuration' },
-    {
-      name: 'Admin',
-      description: 'Admin dashboard — analytics & user management',
-    },
   ],
   components: {
     securitySchemes: {

@@ -54,43 +54,49 @@ export function fuzzySimilarity(a: string, b: string): number {
  *
  * Strategy:
  * 1. If `haystack` contains `needle` as a substring → score 1 (perfect)
- * 2. Compare `needle` against each word in `haystack`
- * 3. Slide `needle`-length window over `haystack` for partial matches
- * 4. Return the best similarity found (0-1)
+ * 2. Split both into words; for each needle word find the best-matching
+ *    haystack word (substring or Levenshtein similarity)
+ * 3. Average scores across needle words so multi-word queries require
+ *    all terms to match, not just one
  *
+ * Intentionally avoids a sliding character window — that approach produces
+ * too many false positives (e.g. "ring" matching "sterling" via "ling").
  * All comparisons are case-insensitive.
  */
 export function fuzzyScore(needle: string, haystack: string): number {
-  const n = needle.toLowerCase();
-  const h = haystack.toLowerCase();
+  const n = needle.toLowerCase().trim();
+  const h = haystack.toLowerCase().trim();
 
-  // exact substring → perfect match
+  if (!n || !h) return 0;
+
+  // Full phrase is a substring → perfect score
   if (h.includes(n)) return 1;
 
-  let best = 0;
+  const needleWords = n.split(/\s+/).filter(Boolean);
+  const haystackWords = h.split(/\s+/).filter(Boolean);
 
-  // word-level comparison
-  const words = h.split(/\s+/).filter(Boolean);
-  for (const word of words) {
-    const sim = fuzzySimilarity(n, word);
-    if (sim > best) best = sim;
-  }
-
-  // sliding window over haystack (catches partial / run-together words)
-  if (n.length <= h.length) {
-    for (let i = 0; i <= h.length - n.length; i++) {
-      const window = h.slice(i, i + n.length);
-      const sim = fuzzySimilarity(n, window);
-      if (sim > best) best = sim;
+  // Score each needle word against all haystack words; take the best per word
+  let total = 0;
+  for (const nw of needleWords) {
+    let wordBest = 0;
+    for (const hw of haystackWords) {
+      // one is a substring of the other → treat as full match for this word
+      if (hw.includes(nw) || nw.includes(hw)) {
+        wordBest = 1;
+        break;
+      }
+      const sim = fuzzySimilarity(nw, hw);
+      if (sim > wordBest) wordBest = sim;
     }
+    total += wordBest;
   }
 
-  return best;
+  return total / needleWords.length;
 }
 
 /**
- * Default minimum similarity to consider a result a "match".
- * 0.5 tolerates roughly half the characters being wrong,
- * which covers most real-world typos for short words.
+ * Default minimum similarity to consider a result a match.
+ * 0.6 allows ~1 edit in a 3–4 char word and ~2 edits in a 6+ char word,
+ * which covers realistic typos without producing false positives.
  */
-export const DEFAULT_FUZZY_THRESHOLD = 0.5;
+export const DEFAULT_FUZZY_THRESHOLD = 0.6;

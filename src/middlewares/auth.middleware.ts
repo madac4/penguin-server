@@ -26,3 +26,22 @@ export const authenticate = async (
     next(new ErrorHandler('Invalid or expired access token', 401));
   }
 };
+
+// Populates req.user when a valid Bearer token is present, but never blocks the request.
+export const optionalAuthenticate = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const payload = verifyAccessToken(authHeader.split(' ')[1]);
+      const user = await User.findById(payload.userId);
+      if (user) req.user = user;
+    } catch {
+      // Invalid / expired token — proceed as unauthenticated
+    }
+  }
+  next();
+};

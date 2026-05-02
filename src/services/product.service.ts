@@ -1,9 +1,12 @@
+import { Types } from 'mongoose';
 import type { PaginatedDto } from '@/dtos/common.dto';
 import {
   toProductDetailDto,
   toProductDto,
+  type FileAccessDto,
   type ProductDetailDto,
   type ProductDto,
+  type ProductFiltersDto,
 } from '@/dtos/product.dto';
 import { DEFAULT_FUZZY_THRESHOLD, fuzzyScore } from '@/utils/fuzzy.util';
 import { paginatedResult, parsePagination } from '@/utils/pagination.util';
@@ -17,15 +20,18 @@ import { PropertyDefinition } from '../models/property-definition.model';
 import type { ITranslatedField } from '../models/shared.schema';
 import type { ITagDocument } from '../models/tag.model';
 import { Tag } from '../models/tag.model';
+import { toPropertyDefinitionDto } from '../dtos/property-definition.dto';
+import { toTagDto } from '../dtos/tag.dto';
 import type {
   CreateProductInput,
   ListProductsInput,
   UpdateProductInput,
 } from '../validators/product.validator';
+import * as purchaseService from './purchase.service';
+import * as subscriptionService from './subscription.service';
 import * as uploadService from './upload.service';
 import * as wishlistService from './wishlist.service';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+import { Role } from '../utils/enums';
 
 async function validatePropertyDefinitions(
   properties: { definition: string; value: string }[],
@@ -71,11 +77,11 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
     slug,
     thumbnail: input.thumbnail,
     images: input.images,
+    files: input.files,
     category: input.category,
     tags: input.tags,
     price: input.price,
     properties: input.properties,
-    fileFormats: input.fileFormats,
     isActive: input.isActive,
   });
 
@@ -84,7 +90,10 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
 
 // ─── Get by ID (with populated refs + view increment) ────────────────────────
 
-export async function getProductById(id: string): Promise<ProductDetailDto> {
+export async function getProductById(
+  id: string,
+  requestingUser?: { id: string; role: string },
+): Promise<ProductDetailDto> {
   const product = await Product.findById(id)
     .populate<{ category: ICategoryDocument }>('category')
     .populate<{ tags: ITagDocument[] }>('tags')
@@ -96,8 +105,60 @@ export async function getProductById(id: string): Promise<ProductDetailDto> {
 
   await Product.updateOne({ _id: id }, { $inc: { viewCount: 1 } });
 
-  return toProductDetailDto(product as unknown as IProductDocument);
+  const fileAccess = await resolveFileAccess(
+    { id: product._id.toString(), price: product.price, fileCount: product.files.length },
+    requestingUser,
+  );
+
+  return toProductDetailDto(product as unknown as IProductDocument, fileAccess);
 }
+
+async function resolveFileAccess(
+  product: { id: string; price: number; fileCount: number },
+  user?: { id: string; role: string },
+): Promise<FileAccessDto> {
+  const open: FileAccessDto = {
+    locked: false,
+    reason: null,
+    canUnlockWithSubscription: false,
+    subscriptionDownloadsRemaining: null,
+  };
+
+  if (product.fileCount === 0) return open;
+
+  if (!user) {
+    return { locked: true, reason: 'unauthenticated', canUnlockWithSubscription: false, subscriptionDownloadsRemaining: null };
+  }
+
+  if (user.role === Role.Administrator) return open;
+  if (product.price === 0) return open;
+
+  // Paid product — check direct purchase
+  if (await purchaseService.hasPurchased(user.id, product.id)) return open;
+
+  // Check if already unlocked via a previous subscription credit
+  if (await subscriptionService.hasUnlockedViaSubscription(user.id, product.id)) return open;
+
+  // Check active subscription for remaining credits
+  const subscription = await subscriptionService.getActiveSubscription(user.id);
+  const remaining = subscription ? subscriptionService.remainingDownloads(subscription) : 0;
+
+  return {
+    locked: true,
+    reason: remaining > 0 ? 'subscription_required' : 'purchase_required',
+    canUnlockWithSubscription: remaining > 0,
+    subscriptionDownloadsRemaining: subscription ? remaining : null,
+  };
+}
+
+// ─── Sort map ────────────────────────────────────────────────────────────────
+
+const SORT_MAP: Record<string, Record<string, 1 | -1>> = {
+  newest: { createdAt: -1 },
+  price_asc: { price: 1 },
+  price_desc: { price: -1 },
+  popular: { viewCount: -1 },
+};
 
 // ─── List (paginated, filterable, fuzzy search) ──────────────────────────────
 export async function listProducts(query: ListProductsInput): Promise<PaginatedDto<ProductDto>> {
@@ -109,18 +170,37 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
   if (query.category) filter.category = query.category;
   if (query.tag) filter.tags = query.tag;
 
+  if (query.priceMin !== undefined || query.priceMax !== undefined) {
+    const priceFilter: Record<string, number> = {};
+    if (query.priceMin !== undefined) priceFilter.$gte = query.priceMin;
+    if (query.priceMax !== undefined) priceFilter.$lte = query.priceMax;
+    filter.price = priceFilter;
+  }
+
+  if (query.formats && query.formats.length > 0) {
+    filter['files.format'] = { $in: query.formats };
+  }
+
+  const sort = SORT_MAP[query.sortBy ?? 'newest'];
+
   if (query.search) {
     const needle = query.search;
 
-    const allItems = await Product.find(filter).sort({ createdAt: -1 }).lean();
+    const allItems = await Product.find(filter).sort(sort).lean();
 
     const scored = allItems
       .map((item) => {
+        const propertyBest =
+          item.properties?.length > 0
+            ? Math.max(...item.properties.map((p) => fuzzyScore(needle, p.value)))
+            : 0;
+
         const best = Math.max(
           fuzzyScore(needle, item.name.en),
           fuzzyScore(needle, item.name.ru),
           fuzzyScore(needle, item.description?.en ?? ''),
           fuzzyScore(needle, item.description?.ru ?? ''),
+          propertyBest,
         );
         return { item, score: best };
       })
@@ -142,7 +222,7 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
   const skip = (page - 1) * limit;
 
   const [items, total] = await Promise.all([
-    Product.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    Product.find(filter).sort(sort).skip(skip).limit(limit).lean(),
     Product.countDocuments(filter),
   ]);
 
@@ -196,8 +276,8 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
 
   if (input.thumbnail !== undefined) product.thumbnail = input.thumbnail;
   if (input.images !== undefined) product.images = input.images;
+  if (input.files !== undefined) product.files = input.files as unknown as typeof product.files;
   if (input.price !== undefined) product.price = input.price;
-  if (input.fileFormats !== undefined) product.fileFormats = input.fileFormats;
   if (input.isActive !== undefined) product.isActive = input.isActive;
 
   if (input.properties !== undefined) {
@@ -208,6 +288,112 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
   await product.save();
 
   return toProductDto(product);
+}
+
+// ─── Unlock files via subscription credit ────────────────────────────────────
+
+export async function unlockProductFiles(
+  productId: string,
+  userId: string,
+): Promise<ProductDetailDto['files']> {
+  const product = await Product.findById(productId);
+  if (!product) throw new ErrorHandler('Product not found', 404);
+  if (product.files.length === 0) throw new ErrorHandler('This product has no files', 400);
+  if (product.price === 0) throw new ErrorHandler('This product is free — no unlock needed', 400);
+
+  if (await purchaseService.hasPurchased(userId, productId)) {
+    throw new ErrorHandler('You have already purchased this product', 400);
+  }
+
+  if (await subscriptionService.hasUnlockedViaSubscription(userId, productId)) {
+    // Already unlocked — just return the URLs
+    return product.files.map((f) => ({ url: f.url, filename: f.filename, format: f.format, size: f.size }));
+  }
+
+  const subscription = await subscriptionService.getActiveSubscription(userId);
+  if (!subscription) throw new ErrorHandler('An active subscription is required to unlock this product', 403);
+
+  await subscriptionService.consumeDownloadCredit(subscription, userId, productId);
+
+  return product.files.map((f) => ({ url: f.url, filename: f.filename, format: f.format, size: f.size }));
+}
+
+// ─── Filters ─────────────────────────────────────────────────────────────────
+
+export async function getProductFilters(categoryId?: string): Promise<ProductFiltersDto> {
+  const match: Record<string, unknown> = { isActive: true };
+  if (categoryId) match.category = new Types.ObjectId(categoryId);
+
+  type FacetResult = {
+    priceRange: { min: number; max: number }[];
+    formats: { _id: string }[];
+    tagIds: { _id: Types.ObjectId }[];
+    propertyValues: { _id: Types.ObjectId; values: string[] }[];
+  };
+
+  const [facet] = await Product.aggregate<FacetResult>([
+    { $match: match },
+    {
+      $facet: {
+        priceRange: [
+          { $group: { _id: null, min: { $min: '$price' }, max: { $max: '$price' } } },
+          { $project: { _id: 0, min: 1, max: 1 } },
+        ],
+        formats: [
+          { $unwind: { path: '$files', preserveNullAndEmptyArrays: false } },
+          { $group: { _id: '$files.format' } },
+          { $match: { _id: { $ne: null } } },
+          { $sort: { _id: 1 } },
+        ],
+        tagIds: [
+          { $unwind: { path: '$tags', preserveNullAndEmptyArrays: false } },
+          { $group: { _id: '$tags' } },
+        ],
+        propertyValues: [
+          { $unwind: { path: '$properties', preserveNullAndEmptyArrays: false } },
+          {
+            $group: {
+              _id: '$properties.definition',
+              values: { $addToSet: '$properties.value' },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  const priceRange = facet.priceRange[0] ?? { min: 0, max: 0 };
+  const formats = facet.formats.map((f) => f._id).filter(Boolean);
+
+  const tagIds = facet.tagIds.map((t) => t._id);
+  const tags = tagIds.length
+    ? await Tag.find({ _id: { $in: tagIds } }).lean()
+    : [];
+
+  const defIds = facet.propertyValues.map((p) => p._id);
+  const definitions = defIds.length
+    ? await PropertyDefinition.find({ _id: { $in: defIds }, isActive: true }).lean()
+    : [];
+
+  const defMap = new Map(definitions.map((d) => [d._id.toString(), d]));
+
+  const properties = facet.propertyValues
+    .map((p) => {
+      const def = defMap.get(p._id.toString());
+      if (!def) return null;
+      return {
+        definition: toPropertyDefinitionDto(def as unknown as IPropertyDefinitionDocument),
+        values: [...p.values].sort(),
+      };
+    })
+    .filter((p): p is NonNullable<typeof p> => p !== null);
+
+  return {
+    priceRange,
+    formats,
+    tags: tags.map((t) => toTagDto(t as unknown as ITagDocument)),
+    properties,
+  };
 }
 
 // ─── Delete ──────────────────────────────────────────────────────────────────

@@ -1,6 +1,25 @@
 import mongoose, { Schema, model, type Document, type Model, type Types } from 'mongoose';
 import { translatedFieldSchema, type ITranslatedField } from './shared.schema';
 
+// ─── Product File (embedded uploaded 3D model file) ──────────────────────────
+
+export interface IProductFile {
+  url: string;
+  filename: string;
+  format: string;
+  size: number;
+}
+
+const productFileSchema = new Schema<IProductFile>(
+  {
+    url: { type: String, required: true },
+    filename: { type: String, required: true },
+    format: { type: String, required: true },
+    size: { type: Number, required: true },
+  },
+  { _id: false },
+);
+
 // ─── Product Property (embedded value referencing a definition) ──────────────
 
 export interface IProductProperty {
@@ -24,13 +43,13 @@ export interface IProduct {
   slug: ITranslatedField;
   thumbnail: string;
   images: string[];
+  files: IProductFile[];
   category: Types.ObjectId;
   tags: Types.ObjectId[];
   price: number;
   viewCount: number;
   likeCount: number;
   properties: IProductProperty[];
-  fileFormats: string[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -45,13 +64,13 @@ const productSchema = new Schema<IProductDocument>(
     slug: { type: translatedFieldSchema, required: true },
     thumbnail: { type: String, default: '' },
     images: { type: [String], default: [] },
+    files: { type: [productFileSchema], default: [] },
     category: { type: Schema.Types.ObjectId, ref: 'Category', required: true },
     tags: [{ type: Schema.Types.ObjectId, ref: 'Tag' }],
     price: { type: Number, default: 0, min: 0 },
     viewCount: { type: Number, default: 0 },
     likeCount: { type: Number, default: 0 },
     properties: { type: [productPropertySchema], default: [] },
-    fileFormats: { type: [String], default: [] },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true },

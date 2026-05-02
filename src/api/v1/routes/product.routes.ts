@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as productController from '../../../controllers/product.controller';
-import { authenticate } from '../../../middlewares/auth.middleware';
+import { authenticate, optionalAuthenticate } from '../../../middlewares/auth.middleware';
 import { authorize } from '../../../middlewares/role.middleware';
 import { validateBody, validateQuery } from '../../../middlewares/validate.middleware';
 import { Role } from '../../../utils/enums';
@@ -43,6 +43,42 @@ const router = Router();
  *           $ref: '#/components/schemas/PropertyDefinitionDto'
  *         value:
  *           type: string
+ *     ProductFileInput:
+ *       type: object
+ *       required:
+ *         - url
+ *         - filename
+ *         - format
+ *         - size
+ *       properties:
+ *         url:
+ *           type: string
+ *           format: uri
+ *           description: Public R2 URL returned by POST /media/upload
+ *         filename:
+ *           type: string
+ *           description: Original filename (from MediaDto.filename)
+ *         format:
+ *           type: string
+ *           description: File format derived from extension (e.g. STL, GLB, OBJ)
+ *         size:
+ *           type: integer
+ *           description: File size in bytes (from MediaDto.size)
+ *     ProductFileDto:
+ *       type: object
+ *       properties:
+ *         url:
+ *           type: string
+ *           description: Public URL of the uploaded 3D model file
+ *         filename:
+ *           type: string
+ *           description: Original filename
+ *         format:
+ *           type: string
+ *           description: File format (e.g. STL, GLB, OBJ)
+ *         size:
+ *           type: integer
+ *           description: File size in bytes
  *     ProductDto:
  *       type: object
  *       properties:
@@ -61,6 +97,11 @@ const router = Router();
  *           type: array
  *           items:
  *             type: string
+ *         files:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/ProductFileDto'
+ *           description: Uploaded 3D model files
  *         category:
  *           type: string
  *         tags:
@@ -77,10 +118,6 @@ const router = Router();
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/ProductPropertyDto'
- *         fileFormats:
- *           type: array
- *           items:
- *             type: string
  *         isActive:
  *           type: boolean
  *         createdAt:
@@ -107,6 +144,11 @@ const router = Router();
  *           type: array
  *           items:
  *             type: string
+ *         files:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/ProductFileDto'
+ *           description: Uploaded 3D model files
  *         category:
  *           $ref: '#/components/schemas/CategoryDto'
  *         tags:
@@ -123,10 +165,6 @@ const router = Router();
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/ProductPropertyDetailDto'
- *         fileFormats:
- *           type: array
- *           items:
- *             type: string
  *         isActive:
  *           type: boolean
  *         createdAt:
@@ -146,7 +184,7 @@ const router = Router();
  *     tags:
  *       - Products
  *     summary: Paginated list of products
- *     description: Returns a paginated list of products. Supports bilingual fuzzy search, filtering by category, tag, and active status.
+ *     description: Returns a paginated list of products. Supports bilingual fuzzy search, sorting, price range, format, and dynamic property filters.
  *     operationId: listProducts
  *     parameters:
  *       - in: query
@@ -162,9 +200,16 @@ const router = Router();
  *           maximum: 100
  *       - in: query
  *         name: search
- *         description: Search in product names and descriptions (works in both English and Russian)
+ *         description: Bilingual fuzzy search across names and descriptions
  *         schema:
  *           type: string
+ *       - in: query
+ *         name: sortBy
+ *         description: Sort order
+ *         schema:
+ *           type: string
+ *           enum: [newest, price_asc, price_desc, popular]
+ *           default: newest
  *       - in: query
  *         name: category
  *         description: Filter by category ID
@@ -179,6 +224,23 @@ const router = Router();
  *         name: isActive
  *         schema:
  *           type: boolean
+ *       - in: query
+ *         name: priceMin
+ *         description: Minimum price (inclusive)
+ *         schema:
+ *           type: number
+ *           minimum: 0
+ *       - in: query
+ *         name: priceMax
+ *         description: Maximum price (inclusive)
+ *         schema:
+ *           type: number
+ *           minimum: 0
+ *       - in: query
+ *         name: formats
+ *         description: "Comma-separated list of 3D file formats to filter by. Example: STL,GLB,OBJ"
+ *         schema:
+ *           type: string
  *     responses:
  *       '200':
  *         description: Paginated list of products
@@ -211,6 +273,67 @@ router.get('/', validateQuery(listProductsSchema), productController.list);
 
 /**
  * @openapi
+ * /api/v1/products/filters:
+ *   get:
+ *     tags:
+ *       - Products
+ *     summary: Available filters for the product list
+ *     description: |
+ *       Returns all filter options that are actually present in active products,
+ *       optionally scoped to a category. Use this to populate dynamic filter panels on the storefront.
+ *     operationId: getProductFilters
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         description: Scope filters to products in this category ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: Available filters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     priceRange:
+ *                       type: object
+ *                       properties:
+ *                         min:
+ *                           type: number
+ *                         max:
+ *                           type: number
+ *                     formats:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       description: Distinct 3D file formats present in products (e.g. ["GLB","OBJ","STL"])
+ *                     tags:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/TagDto'
+ *                     properties:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           definition:
+ *                             $ref: '#/components/schemas/PropertyDefinitionDto'
+ *                           values:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                             description: Sorted list of distinct values for this property across matching products
+ */
+router.get('/filters', productController.filters);
+
+/**
+ * @openapi
  * /api/v1/products/{id}:
  *   get:
  *     tags:
@@ -239,7 +362,7 @@ router.get('/', validateQuery(listProductsSchema), productController.list);
  *       '404':
  *         description: Product not found
  */
-router.get('/:id', productController.getById);
+router.get('/:id', optionalAuthenticate, productController.getById);
 
 // ─── Admin Routes ────────────────────────────────────────────────────────────
 
@@ -270,11 +393,17 @@ router.get('/:id', productController.getById);
  *                 $ref: '#/components/schemas/TranslatedField'
  *               thumbnail:
  *                 type: string
- *                 description: Thumbnail image URL
+ *                 description: Thumbnail image URL (upload via /media/upload first)
  *               images:
  *                 type: array
  *                 items:
  *                   type: string
+ *                 description: Image URLs (upload via /media/upload first)
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   $ref: '#/components/schemas/ProductFileInput'
+ *                 description: 3D model files (upload via /media/upload first, then pass metadata here)
  *               category:
  *                 type: string
  *                 description: Category ID
@@ -282,41 +411,17 @@ router.get('/:id', productController.getById);
  *                 type: array
  *                 items:
  *                   type: string
- *                 description: Array of Tag IDs
+ *                 description: Tag IDs
  *               price:
  *                 type: number
  *                 default: 0
- *                 description: "Product price in sum. 0 = free."
  *               properties:
  *                 type: array
  *                 items:
  *                   $ref: '#/components/schemas/ProductPropertyInput'
- *                 description: Dynamic product properties (definition ID + value)
- *               fileFormats:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: e.g. ["STL", "AMF", "3DS"]
  *               isActive:
  *                 type: boolean
  *                 default: true
- *           example:
- *             name:
- *               en: "Motion Ring Size 56 EU"
- *               ru: "Кольцо Движения Размер 56 EU"
- *             description:
- *               en: "An imitation of the iconic motion ring from the signature collection"
- *               ru: "Имитация культового кольца движения из фирменной коллекции"
- *             thumbnail: "https://cdn.example.com/products/ring-thumb.webp"
- *             category: "60d5ec49f1b2c72b7c8e4a1b"
- *             tags: ["60d5ec49f1b2c72b7c8e4a1c"]
- *             price: 20.99
- *             properties:
- *               - definition: "60d5ec49f1b2c72b7c8e4a1d"
- *                 value: "56 EU / 7.5 US"
- *               - definition: "60d5ec49f1b2c72b7c8e4a1e"
- *                 value: "15g"
- *             fileFormats: ["STL", "AMF", "3DS", "3DM"]
  *     responses:
  *       '201':
  *         description: Product created
@@ -380,11 +485,15 @@ router.post(
  *                 $ref: '#/components/schemas/TranslatedField'
  *               thumbnail:
  *                 type: string
- *                 description: Thumbnail image URL
  *               images:
  *                 type: array
  *                 items:
  *                   type: string
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   $ref: '#/components/schemas/ProductFileInput'
+ *                 description: Full replacement of the 3D files list. Omit to leave unchanged.
  *               category:
  *                 type: string
  *               tags:
@@ -397,10 +506,6 @@ router.post(
  *                 type: array
  *                 items:
  *                   $ref: '#/components/schemas/ProductPropertyInput'
- *               fileFormats:
- *                 type: array
- *                 items:
- *                   type: string
  *               isActive:
  *                 type: boolean
  *     responses:
@@ -462,5 +567,57 @@ router.put(
  *         description: Product not found
  */
 router.delete('/:id', authenticate, authorize(Role.Administrator), productController.remove);
+
+/**
+ * @openapi
+ * /api/v1/products/{id}/unlock:
+ *   post:
+ *     tags:
+ *       - Products
+ *     summary: Unlock product files using a subscription credit
+ *     description: |
+ *       Consumes one download credit from the user's active subscription and returns the
+ *       download URLs for all files in the product. The unlock is idempotent — calling this
+ *       again for an already-unlocked product returns the URLs without consuming another credit.
+ *       Free products (price = 0) and products with no files are rejected.
+ *     operationId: unlockProductFiles
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Product ID
+ *     responses:
+ *       '200':
+ *         description: Files unlocked successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     files:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/ProductFileDto'
+ *       '400':
+ *         description: Product has no files, is free, or was already purchased
+ *       '401':
+ *         description: Not authenticated
+ *       '403':
+ *         description: No active subscription or no remaining download credits
+ *       '404':
+ *         description: Product not found
+ */
+router.post('/:id/unlock', authenticate, productController.unlock);
 
 export default router;

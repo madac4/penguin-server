@@ -7,6 +7,16 @@ import { toCategoryDto, type CategoryDto } from './category.dto';
 import { toPropertyDefinitionDto, type PropertyDefinitionDto } from './property-definition.dto';
 import { toTagDto, type TagDto } from './tag.dto';
 
+export interface ProductFiltersDto {
+  priceRange: { min: number; max: number };
+  formats: string[];
+  tags: TagDto[];
+  properties: {
+    definition: PropertyDefinitionDto;
+    values: string[];
+  }[];
+}
+
 export interface ProductPropertyDto {
   definition: string;
   value: string;
@@ -17,6 +27,13 @@ export interface ProductPropertyDetailDto {
   value: string;
 }
 
+export interface ProductFileDto {
+  url: string | null; // null when the caller has no access to download
+  filename: string;
+  format: string;
+  size: number;
+}
+
 export interface ProductDto {
   id: string;
   name: ITranslatedField;
@@ -24,27 +41,34 @@ export interface ProductDto {
   slug: ITranslatedField;
   thumbnail: string;
   images: string[];
+  files: ProductFileDto[];
   category: string;
   tags: string[];
   price: number;
   viewCount: number;
   likeCount: number;
   properties: ProductPropertyDto[];
-  fileFormats: string[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FileAccessDto {
+  locked: boolean;
+  // Reason only present when locked — helps the UI choose the right CTA
+  reason: 'unauthenticated' | 'subscription_required' | 'purchase_required' | null;
+  canUnlockWithSubscription: boolean;
+  subscriptionDownloadsRemaining: number | null;
 }
 
 export interface ProductDetailDto extends Omit<ProductDto, 'category' | 'tags' | 'properties'> {
   category: CategoryDto | null;
   tags: TagDto[];
   properties: ProductPropertyDetailDto[];
+  fileAccess: FileAccessDto;
 }
 
 export function toProductDto(doc: IProductDocument): ProductDto {
-  console.log(doc);
-
   return {
     id: doc._id.toString(),
     name: doc.name,
@@ -52,6 +76,12 @@ export function toProductDto(doc: IProductDocument): ProductDto {
     slug: doc.slug,
     thumbnail: doc.thumbnail,
     images: doc.images,
+    files: (doc.files ?? []).map((f) => ({
+      url: null,
+      filename: f.filename,
+      format: f.format,
+      size: f.size,
+    })),
     category: doc.category?.toString() ?? '',
     tags: doc.tags?.map((t) => t.toString()) ?? [],
     price: doc.price,
@@ -61,14 +91,16 @@ export function toProductDto(doc: IProductDocument): ProductDto {
       definition: p.definition?.toString() ?? '',
       value: p.value,
     })),
-    fileFormats: doc.fileFormats,
     isActive: doc.isActive,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };
 }
 
-export function toProductDetailDto(doc: IProductDocument): ProductDetailDto {
+export function toProductDetailDto(
+  doc: IProductDocument,
+  fileAccess: FileAccessDto,
+): ProductDetailDto {
   return {
     id: doc._id.toString(),
     name: doc.name,
@@ -76,6 +108,13 @@ export function toProductDetailDto(doc: IProductDocument): ProductDetailDto {
     slug: doc.slug,
     thumbnail: doc.thumbnail,
     images: doc.images,
+    fileAccess,
+    files: (doc.files ?? []).map((f) => ({
+      url: fileAccess.locked ? null : f.url,
+      filename: f.filename,
+      format: f.format,
+      size: f.size,
+    })),
     category: doc.category ? toCategoryDto(doc.category as unknown as ICategoryDocument) : null,
     tags: doc.tags?.map((t) => toTagDto(t as unknown as ITagDocument)) ?? [],
     price: doc.price,
@@ -85,7 +124,6 @@ export function toProductDetailDto(doc: IProductDocument): ProductDetailDto {
       definition: toPropertyDefinitionDto(p.definition as unknown as IPropertyDefinitionDocument),
       value: p.value,
     })),
-    fileFormats: doc.fileFormats,
     isActive: doc.isActive,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
