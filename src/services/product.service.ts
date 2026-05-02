@@ -76,6 +76,8 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
     price: input.price,
     properties: input.properties,
     fileFormats: input.fileFormats,
+    weight: input.weight,
+    size: input.size,
     isActive: input.isActive,
   });
 
@@ -198,6 +200,8 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
   if (input.images !== undefined) product.images = input.images;
   if (input.price !== undefined) product.price = input.price;
   if (input.fileFormats !== undefined) product.fileFormats = input.fileFormats;
+  if (input.weight !== undefined) product.weight = input.weight;
+  if (input.size !== undefined) product.size = input.size;
   if (input.isActive !== undefined) product.isActive = input.isActive;
 
   if (input.properties !== undefined) {

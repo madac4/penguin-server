@@ -31,6 +31,8 @@ export interface IProduct {
   likeCount: number;
   properties: IProductProperty[];
   fileFormats: string[];
+  weight: string;
+  size: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -52,6 +54,8 @@ const productSchema = new Schema<IProductDocument>(
     likeCount: { type: Number, default: 0 },
     properties: { type: [productPropertySchema], default: [] },
     fileFormats: { type: [String], default: [] },
+    weight: { type: String, default: '', trim: true },
+    size: { type: String, default: '', trim: true },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true },

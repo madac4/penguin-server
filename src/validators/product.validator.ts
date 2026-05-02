@@ -34,6 +34,8 @@ export const createProductSchema = z.object({
   price: z.coerce.number().min(0).optional().default(0),
   properties: z.array(productPropertySchema).optional().default([]),
   fileFormats: z.array(z.string().trim().toUpperCase()).optional().default([]),
+  weight: z.string().trim().optional().default(''),
+  size: z.string().trim().optional().default(''),
   isActive: z.boolean().optional().default(true),
 });
 
@@ -56,6 +58,8 @@ export const updateProductSchema = z.object({
   price: z.coerce.number().min(0).optional(),
   properties: z.array(productPropertySchema).optional(),
   fileFormats: z.array(z.string().trim().toUpperCase()).optional(),
+  weight: z.string().trim().optional(),
+  size: z.string().trim().optional(),
   isActive: z.boolean().optional(),
 });
 

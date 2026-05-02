@@ -31,6 +31,8 @@ export interface ProductDto {
   likeCount: number;
   properties: ProductPropertyDto[];
   fileFormats: string[];
+  weight: string;
+  size: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -43,8 +45,6 @@ export interface ProductDetailDto extends Omit<ProductDto, 'category' | 'tags' |
 }
 
 export function toProductDto(doc: IProductDocument): ProductDto {
-  console.log(doc);
-
   return {
     id: doc._id.toString(),
     name: doc.name,
@@ -62,6 +62,8 @@ export function toProductDto(doc: IProductDocument): ProductDto {
       value: p.value,
     })),
     fileFormats: doc.fileFormats,
+    weight: doc.weight ?? '',
+    size: doc.size ?? '',
     isActive: doc.isActive,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
@@ -86,6 +88,8 @@ export function toProductDetailDto(doc: IProductDocument): ProductDetailDto {
       value: p.value,
     })),
     fileFormats: doc.fileFormats,
+    weight: doc.weight ?? '',
+    size: doc.size ?? '',
     isActive: doc.isActive,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
