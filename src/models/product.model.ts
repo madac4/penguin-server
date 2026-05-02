@@ -24,13 +24,16 @@ export interface IProduct {
   slug: ITranslatedField;
   thumbnail: string;
   images: string[];
+  fileUrl: string;
   category: Types.ObjectId;
   tags: Types.ObjectId[];
-  price: number;
+  isFree: boolean;
   viewCount: number;
   likeCount: number;
   properties: IProductProperty[];
-  fileFormats: string[];
+  filters: Types.ObjectId[];
+  size: string;
+  weight: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -45,13 +48,16 @@ const productSchema = new Schema<IProductDocument>(
     slug: { type: translatedFieldSchema, required: true },
     thumbnail: { type: String, default: '' },
     images: { type: [String], default: [] },
+    fileUrl: { type: String, default: '' },
     category: { type: Schema.Types.ObjectId, ref: 'Category', required: true },
     tags: [{ type: Schema.Types.ObjectId, ref: 'Tag' }],
-    price: { type: Number, default: 0, min: 0 },
+    isFree: { type: Boolean, default: false },
     viewCount: { type: Number, default: 0 },
     likeCount: { type: Number, default: 0 },
     properties: { type: [productPropertySchema], default: [] },
-    fileFormats: { type: [String], default: [] },
+    filters: [{ type: Schema.Types.ObjectId, ref: 'CategoryFilter' }],
+    size: { type: String, default: '', trim: true },
+    weight: { type: String, default: '', trim: true },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true },
@@ -67,6 +73,7 @@ productSchema.index({ 'slug.ru': 1 }, { unique: true });
 
 productSchema.index({ category: 1 });
 productSchema.index({ tags: 1 });
+productSchema.index({ filters: 1 });
 productSchema.index({ isActive: 1 });
 productSchema.index({ createdAt: -1 });
 

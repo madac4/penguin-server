@@ -67,8 +67,8 @@ const router = Router();
  *           type: array
  *           items:
  *             type: string
- *         price:
- *           type: number
+ *         isFree:
+ *           type: boolean
  *         viewCount:
  *           type: integer
  *         likeCount:
@@ -77,10 +77,6 @@ const router = Router();
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/ProductPropertyDto'
- *         fileFormats:
- *           type: array
- *           items:
- *             type: string
  *         isActive:
  *           type: boolean
  *         createdAt:
@@ -113,8 +109,8 @@ const router = Router();
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/TagDto'
- *         price:
- *           type: number
+ *         isFree:
+ *           type: boolean
  *         viewCount:
  *           type: integer
  *         likeCount:
@@ -123,10 +119,6 @@ const router = Router();
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/ProductPropertyDetailDto'
- *         fileFormats:
- *           type: array
- *           items:
- *             type: string
  *         isActive:
  *           type: boolean
  *         createdAt:
@@ -283,20 +275,15 @@ router.get('/:id', productController.getById);
  *                 items:
  *                   type: string
  *                 description: Array of Tag IDs
- *               price:
- *                 type: number
- *                 default: 0
- *                 description: "Product price in sum. 0 = free."
+ *               isFree:
+ *                 type: boolean
+ *                 default: false
+ *                 description: If true, anyone can download without a subscription.
  *               properties:
  *                 type: array
  *                 items:
  *                   $ref: '#/components/schemas/ProductPropertyInput'
  *                 description: Dynamic product properties (definition ID + value)
- *               fileFormats:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: e.g. ["STL", "AMF", "3DS"]
  *               isActive:
  *                 type: boolean
  *                 default: true
@@ -310,13 +297,12 @@ router.get('/:id', productController.getById);
  *             thumbnail: "https://cdn.example.com/products/ring-thumb.webp"
  *             category: "60d5ec49f1b2c72b7c8e4a1b"
  *             tags: ["60d5ec49f1b2c72b7c8e4a1c"]
- *             price: 20.99
+ *             isFree: false
  *             properties:
  *               - definition: "60d5ec49f1b2c72b7c8e4a1d"
  *                 value: "56 EU / 7.5 US"
  *               - definition: "60d5ec49f1b2c72b7c8e4a1e"
  *                 value: "15g"
- *             fileFormats: ["STL", "AMF", "3DS", "3DM"]
  *     responses:
  *       '201':
  *         description: Product created
@@ -391,16 +377,12 @@ router.post(
  *                 type: array
  *                 items:
  *                   type: string
- *               price:
- *                 type: number
+ *               isFree:
+ *                 type: boolean
  *               properties:
  *                 type: array
  *                 items:
  *                   $ref: '#/components/schemas/ProductPropertyInput'
- *               fileFormats:
- *                 type: array
- *                 items:
- *                   type: string
  *               isActive:
  *                 type: boolean
  *     responses:
@@ -462,5 +444,47 @@ router.put(
  *         description: Product not found
  */
 router.delete('/:id', authenticate, authorize(Role.Administrator), productController.remove);
+
+/**
+ * @openapi
+ * /api/v1/products/{id}/download:
+ *   get:
+ *     tags:
+ *       - Products
+ *     summary: Request a signed download URL for a product's STL file
+ *     description: Returns a short-lived presigned URL the client can use to download the STL. For paid products, an active subscription with remaining download credits is required; one credit is consumed per request. Free products bypass the gate.
+ *     operationId: downloadProduct
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: Signed download URL
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     url:
+ *                       type: string
+ *                       format: uri
+ *       '401':
+ *         description: Not authenticated
+ *       '403':
+ *         description: No active subscription / credits exhausted
+ *       '404':
+ *         description: Product not found or has no downloadable file
+ */
+router.get('/:id/download', authenticate, productController.download);
 
 export default router;

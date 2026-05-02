@@ -29,11 +29,14 @@ export const createProductSchema = z.object({
   description: optionalTranslatedFieldSchema,
   thumbnail: z.string().trim().optional().default(''),
   images: z.array(z.string()).optional().default([]),
+  fileUrl: z.string().trim().optional().default(''),
   category: z.string().min(1, 'Category is required'),
   tags: z.array(z.string()).optional().default([]),
-  price: z.coerce.number().min(0).optional().default(0),
+  isFree: z.boolean().optional().default(false),
   properties: z.array(productPropertySchema).optional().default([]),
-  fileFormats: z.array(z.string().trim().toUpperCase()).optional().default([]),
+  filters: z.array(z.string()).optional().default([]),
+  size: z.string().trim().optional().default(''),
+  weight: z.string().trim().optional().default(''),
   isActive: z.boolean().optional().default(true),
 });
 
@@ -51,11 +54,14 @@ export const updateProductSchema = z.object({
     .optional(),
   thumbnail: z.string().trim().optional(),
   images: z.array(z.string()).optional(),
+  fileUrl: z.string().trim().optional(),
   category: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  price: z.coerce.number().min(0).optional(),
+  isFree: z.boolean().optional(),
   properties: z.array(productPropertySchema).optional(),
-  fileFormats: z.array(z.string().trim().toUpperCase()).optional(),
+  filters: z.array(z.string()).optional(),
+  size: z.string().trim().optional(),
+  weight: z.string().trim().optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -69,7 +75,16 @@ export const listProductsSchema = z.object({
   search: z.string().trim().optional(),
   category: z.string().optional(),
   tag: z.string().optional(),
+  filters: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? v.split(',').map((s) => s.trim()).filter(Boolean) : undefined)),
   isActive: z
+    .enum(['true', 'false'])
+    .transform((v) => v === 'true')
+    .optional(),
+  isFree: z
     .enum(['true', 'false'])
     .transform((v) => v === 'true')
     .optional(),

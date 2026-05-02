@@ -1,9 +1,11 @@
 import { ICategoryDocument } from '@/models/category.model';
+import type { ICategoryFilterDocument } from '@/models/category-filter.model';
 import { IPropertyDefinitionDocument } from '@/models/property-definition.model';
 import { ITagDocument } from '@/models/tag.model';
 import type { IProductDocument } from '../models/product.model';
 import type { ITranslatedField } from '../models/shared.schema';
 import { toCategoryDto, type CategoryDto } from './category.dto';
+import { toCategoryFilterDto, type CategoryFilterDto } from './category-filter.dto';
 import { toPropertyDefinitionDto, type PropertyDefinitionDto } from './property-definition.dto';
 import { toTagDto, type TagDto } from './tag.dto';
 
@@ -24,27 +26,30 @@ export interface ProductDto {
   slug: ITranslatedField;
   thumbnail: string;
   images: string[];
+  fileUrl: string;
   category: string;
   tags: string[];
-  price: number;
+  isFree: boolean;
   viewCount: number;
   likeCount: number;
   properties: ProductPropertyDto[];
-  fileFormats: string[];
+  filters: string[];
+  size: string;
+  weight: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface ProductDetailDto extends Omit<ProductDto, 'category' | 'tags' | 'properties'> {
+export interface ProductDetailDto
+  extends Omit<ProductDto, 'category' | 'tags' | 'properties' | 'filters'> {
   category: CategoryDto | null;
   tags: TagDto[];
   properties: ProductPropertyDetailDto[];
+  filters: CategoryFilterDto[];
 }
 
 export function toProductDto(doc: IProductDocument): ProductDto {
-  console.log(doc);
-
   return {
     id: doc._id.toString(),
     name: doc.name,
@@ -52,16 +57,19 @@ export function toProductDto(doc: IProductDocument): ProductDto {
     slug: doc.slug,
     thumbnail: doc.thumbnail,
     images: doc.images,
+    fileUrl: doc.fileUrl ?? '',
     category: doc.category?.toString() ?? '',
     tags: doc.tags?.map((t) => t.toString()) ?? [],
-    price: doc.price,
+    isFree: doc.isFree,
     viewCount: doc.viewCount,
     likeCount: doc.likeCount,
     properties: (doc.properties ?? []).map((p) => ({
       definition: p.definition?.toString() ?? '',
       value: p.value,
     })),
-    fileFormats: doc.fileFormats,
+    filters: (doc.filters ?? []).map((f) => f.toString()),
+    size: doc.size ?? '',
+    weight: doc.weight ?? '',
     isActive: doc.isActive,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
@@ -76,16 +84,21 @@ export function toProductDetailDto(doc: IProductDocument): ProductDetailDto {
     slug: doc.slug,
     thumbnail: doc.thumbnail,
     images: doc.images,
+    fileUrl: doc.fileUrl ?? '',
     category: doc.category ? toCategoryDto(doc.category as unknown as ICategoryDocument) : null,
     tags: doc.tags?.map((t) => toTagDto(t as unknown as ITagDocument)) ?? [],
-    price: doc.price,
+    isFree: doc.isFree,
     viewCount: doc.viewCount + 1,
     likeCount: doc.likeCount,
     properties: (doc.properties ?? []).map((p) => ({
       definition: toPropertyDefinitionDto(p.definition as unknown as IPropertyDefinitionDocument),
       value: p.value,
     })),
-    fileFormats: doc.fileFormats,
+    filters: (doc.filters ?? []).map((f) =>
+      toCategoryFilterDto(f as unknown as ICategoryFilterDocument),
+    ),
+    size: doc.size ?? '',
+    weight: doc.weight ?? '',
     isActive: doc.isActive,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),

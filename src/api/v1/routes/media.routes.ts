@@ -65,7 +65,7 @@ router.use(authenticate, authorize(Role.Administrator));
  *           enum: [image, document, model]
  *         folder:
  *           type: string
- *           enum: [categories, products, general, users, all]
+ *           enum: [categories, products, protected/products, general, users, all]
  *         uploadedBy:
  *           type: string
  *         alt:
@@ -111,7 +111,7 @@ router.use(authenticate, authorize(Role.Administrator));
  *         description: Filter by storage folder
  *         schema:
  *           type: string
- *           enum: [categories, products, general, users, all]
+ *           enum: [categories, products, protected/products, general, users, all]
  *       - in: query
  *         name: type
  *         description: Filter by media type
@@ -221,7 +221,7 @@ router.get('/:id', mediaController.getById);
  *                 format: binary
  *               folder:
  *                 type: string
- *                 enum: [categories, products, general, users, all]
+ *                 enum: [categories, products, protected/products, general, users, all]
  *               alt:
  *                 type: string
  *                 description: Optional alt text / description
@@ -276,7 +276,7 @@ router.post('/upload', uploadSingle, mediaController.upload);
  *                   format: binary
  *               folder:
  *                 type: string
- *                 enum: [categories, products, general, users, all]
+ *                 enum: [categories, products, protected/products, general, users, all]
  *     responses:
  *       '201':
  *         description: Files uploaded
