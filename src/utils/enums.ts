@@ -26,5 +26,6 @@ export enum UploadFolder {
   Products = 'products',
   General = 'general',
   Users = 'users',
+  Subscriptions = 'subscriptions',
   All = 'all',
 }

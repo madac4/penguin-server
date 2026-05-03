@@ -56,7 +56,7 @@ export interface ProductDto {
 export interface FileAccessDto {
   locked: boolean;
   // Reason only present when locked — helps the UI choose the right CTA
-  reason: 'unauthenticated' | 'purchase_required' | null;
+  reason: 'unauthenticated' | 'purchase_required' | 'quota_exceeded' | null;
 }
 
 export interface ProductDetailDto extends Omit<ProductDto, 'category' | 'tags' | 'properties'> {

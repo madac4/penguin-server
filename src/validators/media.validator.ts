@@ -4,7 +4,7 @@ import { MediaType, UploadFolder } from '../utils/enums';
 // ─── Upload ──────────────────────────────────────────────────────────────────
 
 export const uploadMediaSchema = z.object({
-  folder: z.nativeEnum(UploadFolder),
+  folder: z.enum(UploadFolder),
   alt: z.string().trim().optional().default(''),
 });
 
@@ -26,7 +26,7 @@ export const listMediaSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
   search: z.string().trim().optional(),
   folder: z.enum(UploadFolder).optional().default(UploadFolder.All),
-  type: z.nativeEnum(MediaType).optional(),
+  type: z.enum(MediaType).optional(),
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),
 });

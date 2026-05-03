@@ -78,19 +78,16 @@ export const webhook = async (req: Request, res: Response): Promise<void> => {
 
   try {
     if (event_name === 'order_created' && payload.data.attributes.status === 'paid') {
-      if (!custom_data?.user_id || !custom_data?.products_ids?.length) {
-        res.status(200).json({ received: true });
-        return;
+      if (custom_data?.user_id && custom_data?.products_ids?.length) {
+        await orderService.createOrder({
+          userId: custom_data.user_id,
+          productIds: custom_data.products_ids.split(',').filter(Boolean),
+          lsOrderId: payload.data.id,
+          total: payload.data.attributes.total!,
+          currency: payload.data.attributes.currency!,
+          receiptUrl: payload.data.attributes.urls!.receipt,
+        });
       }
-
-      await orderService.createOrder({
-        userId: custom_data.user_id,
-        productIds: custom_data.products_ids.split(',').filter(Boolean),
-        lsOrderId: payload.data.id,
-        total: payload.data.attributes.total,
-        currency: payload.data.attributes.currency,
-        receiptUrl: payload.data.attributes.urls.receipt,
-      });
     }
 
     if (event_name === 'order_refunded') {
@@ -108,4 +105,32 @@ export const webhook = async (req: Request, res: Response): Promise<void> => {
 export const list = CatchAsyncErrors(async (req: Request, res: Response): Promise<void> => {
   const orders = await orderService.listOrders(req.user!._id.toString());
   success(res, orders);
+});
+
+// ─── Admin: GET /orders ───────────────────────────────────────────────────────
+
+export const adminList = CatchAsyncErrors(async (req: Request, res: Response): Promise<void> => {
+  const { page, limit, status, userId } = req.query as {
+    page?: string;
+    limit?: string;
+    status?: 'paid' | 'refunded';
+    userId?: string;
+  };
+
+  const result = await orderService.listAllOrders({
+    page: page ? Number(page) : undefined,
+    limit: limit ? Number(limit) : undefined,
+    status,
+    userId,
+  });
+
+  success(res, result);
+});
+
+// ─── Admin: GET /orders/:id ───────────────────────────────────────────────────
+
+export const adminGetById = CatchAsyncErrors(async (req: Request, res: Response): Promise<void> => {
+  const order = await orderService.getOrderById(req.params.id);
+  if (!order) throw new ErrorHandler('Order not found', 404);
+  success(res, order);
 });

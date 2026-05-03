@@ -28,6 +28,7 @@ import type {
   UpdateProductInput,
 } from '../validators/product.validator';
 import * as orderService from './order.service';
+import * as subscriptionService from './subscription.service';
 import * as uploadService from './upload.service';
 import * as wishlistService from './wishlist.service';
 import { Role } from '../utils/enums';
@@ -123,8 +124,14 @@ async function resolveFileAccess(
   if (user.role === Role.Administrator) return open;
   if (product.price === 0) return open;
 
-  // Paid product — check direct purchase
+  // Paid product — check direct purchase first
   if (await orderService.hasPurchased(user.id, product.id)) return open;
+
+  // Fall back to subscription quota
+  if (await subscriptionService.hasDownloadQuota(user.id)) return open;
+
+  const hasSub = await subscriptionService.getUserSubscription(user.id);
+  if (hasSub) return { locked: true, reason: 'quota_exceeded' };
 
   return { locked: true, reason: 'purchase_required' };
 }
