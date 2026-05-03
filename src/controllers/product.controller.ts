@@ -41,8 +41,3 @@ export const filters = CatchAsyncErrors(async (req: Request, res: Response): Pro
   const result = await productService.getProductFilters(categoryId);
   success(res, result);
 });
-
-export const unlock = CatchAsyncErrors(async (req: Request, res: Response): Promise<void> => {
-  const files = await productService.unlockProductFiles(req.params.id, req.user!._id.toString());
-  success(res, { files }, 200, 'Product files unlocked successfully');
-});

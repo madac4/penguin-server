@@ -56,9 +56,7 @@ export interface ProductDto {
 export interface FileAccessDto {
   locked: boolean;
   // Reason only present when locked — helps the UI choose the right CTA
-  reason: 'unauthenticated' | 'subscription_required' | 'purchase_required' | null;
-  canUnlockWithSubscription: boolean;
-  subscriptionDownloadsRemaining: number | null;
+  reason: 'unauthenticated' | 'purchase_required' | null;
 }
 
 export interface ProductDetailDto extends Omit<ProductDto, 'category' | 'tags' | 'properties'> {

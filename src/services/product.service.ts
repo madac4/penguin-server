@@ -27,8 +27,7 @@ import type {
   ListProductsInput,
   UpdateProductInput,
 } from '../validators/product.validator';
-import * as purchaseService from './purchase.service';
-import * as subscriptionService from './subscription.service';
+import * as orderService from './order.service';
 import * as uploadService from './upload.service';
 import * as wishlistService from './wishlist.service';
 import { Role } from '../utils/enums';
@@ -117,38 +116,17 @@ async function resolveFileAccess(
   product: { id: string; price: number; fileCount: number },
   user?: { id: string; role: string },
 ): Promise<FileAccessDto> {
-  const open: FileAccessDto = {
-    locked: false,
-    reason: null,
-    canUnlockWithSubscription: false,
-    subscriptionDownloadsRemaining: null,
-  };
+  const open: FileAccessDto = { locked: false, reason: null };
 
   if (product.fileCount === 0) return open;
-
-  if (!user) {
-    return { locked: true, reason: 'unauthenticated', canUnlockWithSubscription: false, subscriptionDownloadsRemaining: null };
-  }
-
+  if (!user) return { locked: true, reason: 'unauthenticated' };
   if (user.role === Role.Administrator) return open;
   if (product.price === 0) return open;
 
   // Paid product — check direct purchase
-  if (await purchaseService.hasPurchased(user.id, product.id)) return open;
+  if (await orderService.hasPurchased(user.id, product.id)) return open;
 
-  // Check if already unlocked via a previous subscription credit
-  if (await subscriptionService.hasUnlockedViaSubscription(user.id, product.id)) return open;
-
-  // Check active subscription for remaining credits
-  const subscription = await subscriptionService.getActiveSubscription(user.id);
-  const remaining = subscription ? subscriptionService.remainingDownloads(subscription) : 0;
-
-  return {
-    locked: true,
-    reason: remaining > 0 ? 'subscription_required' : 'purchase_required',
-    canUnlockWithSubscription: remaining > 0,
-    subscriptionDownloadsRemaining: subscription ? remaining : null,
-  };
+  return { locked: true, reason: 'purchase_required' };
 }
 
 // ─── Sort map ────────────────────────────────────────────────────────────────
@@ -168,7 +146,9 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
 
   if (query.isActive !== undefined) filter.isActive = query.isActive;
   if (query.category) filter.category = query.category;
-  if (query.tag) filter.tags = query.tag;
+
+  // Tag filter — OR across selected tags (any matching tag qualifies the product)
+  if (query.tags && query.tags.length > 0) filter.tags = { $in: query.tags };
 
   if (query.priceMin !== undefined || query.priceMax !== undefined) {
     const priceFilter: Record<string, number> = {};
@@ -179,6 +159,15 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
 
   if (query.formats && query.formats.length > 0) {
     filter['files.format'] = { $in: query.formats };
+  }
+
+  // Property filter — AND across selected definition/value pairs
+  if (query.properties && query.properties.length > 0) {
+    filter.properties = {
+      $all: query.properties.map((p) => ({
+        $elemMatch: { definition: new Types.ObjectId(p.definition), value: p.value },
+      })),
+    };
   }
 
   const sort = SORT_MAP[query.sortBy ?? 'newest'];
@@ -288,34 +277,6 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
   await product.save();
 
   return toProductDto(product);
-}
-
-// ─── Unlock files via subscription credit ────────────────────────────────────
-
-export async function unlockProductFiles(
-  productId: string,
-  userId: string,
-): Promise<ProductDetailDto['files']> {
-  const product = await Product.findById(productId);
-  if (!product) throw new ErrorHandler('Product not found', 404);
-  if (product.files.length === 0) throw new ErrorHandler('This product has no files', 400);
-  if (product.price === 0) throw new ErrorHandler('This product is free — no unlock needed', 400);
-
-  if (await purchaseService.hasPurchased(userId, productId)) {
-    throw new ErrorHandler('You have already purchased this product', 400);
-  }
-
-  if (await subscriptionService.hasUnlockedViaSubscription(userId, productId)) {
-    // Already unlocked — just return the URLs
-    return product.files.map((f) => ({ url: f.url, filename: f.filename, format: f.format, size: f.size }));
-  }
-
-  const subscription = await subscriptionService.getActiveSubscription(userId);
-  if (!subscription) throw new ErrorHandler('An active subscription is required to unlock this product', 403);
-
-  await subscriptionService.consumeDownloadCredit(subscription, userId, productId);
-
-  return product.files.map((f) => ({ url: f.url, filename: f.filename, format: f.format, size: f.size }));
 }
 
 // ─── Filters ─────────────────────────────────────────────────────────────────

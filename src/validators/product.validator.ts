@@ -77,7 +77,18 @@ export const listProductsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
   search: z.string().trim().optional(),
   category: z.string().optional(),
-  tag: z.string().optional(),
+  // Comma-separated tag IDs: ?tags=id1,id2
+  tags: z
+    .string()
+    .optional()
+    .transform((v) =>
+      v
+        ? v
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean)
+        : undefined,
+    ),
   isActive: z
     .enum(['true', 'false'])
     .transform((v) => v === 'true')
@@ -88,7 +99,7 @@ export const listProductsSchema = z.object({
     .default('newest'),
   priceMin: z.coerce.number().min(0).optional(),
   priceMax: z.coerce.number().min(0).optional(),
-  // Comma-separated list of format labels: ?formats=STL,GLB,OBJ
+  // Comma-separated format labels: ?formats=STL,GLB,OBJ
   formats: z
     .string()
     .optional()
@@ -100,6 +111,25 @@ export const listProductsSchema = z.object({
             .filter(Boolean)
         : undefined,
     ),
+  // Comma-separated definitionId:value pairs: ?properties=defId1:gold,defId2:modern
+  // All specified pairs must match (AND logic across definitions).
+  properties: z
+    .string()
+    .optional()
+    .transform((v) => {
+      if (!v) return undefined;
+      const pairs = v
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => {
+          const colonIdx = s.indexOf(':');
+          if (colonIdx === -1) return null;
+          return { definition: s.slice(0, colonIdx).trim(), value: s.slice(colonIdx + 1).trim() };
+        })
+        .filter((p): p is { definition: string; value: string } => p !== null && p.definition !== '' && p.value !== '');
+      return pairs.length > 0 ? pairs : undefined;
+    }),
 });
 
 export type ListProductsInput = z.infer<typeof listProductsSchema>;

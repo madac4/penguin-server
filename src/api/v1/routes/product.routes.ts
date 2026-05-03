@@ -216,8 +216,8 @@ const router = Router();
  *         schema:
  *           type: string
  *       - in: query
- *         name: tag
- *         description: Filter by tag ID
+ *         name: tags
+ *         description: "Comma-separated tag IDs. Products matching ANY of the specified tags are returned. Example: id1,id2"
  *         schema:
  *           type: string
  *       - in: query
@@ -239,6 +239,11 @@ const router = Router();
  *       - in: query
  *         name: formats
  *         description: "Comma-separated list of 3D file formats to filter by. Example: STL,GLB,OBJ"
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: properties
+ *         description: "Comma-separated definitionId:value pairs. ALL pairs must match (AND logic across definitions). Example: 64abc:gold,64def:modern"
  *         schema:
  *           type: string
  *     responses:
@@ -567,57 +572,5 @@ router.put(
  *         description: Product not found
  */
 router.delete('/:id', authenticate, authorize(Role.Administrator), productController.remove);
-
-/**
- * @openapi
- * /api/v1/products/{id}/unlock:
- *   post:
- *     tags:
- *       - Products
- *     summary: Unlock product files using a subscription credit
- *     description: |
- *       Consumes one download credit from the user's active subscription and returns the
- *       download URLs for all files in the product. The unlock is idempotent — calling this
- *       again for an already-unlocked product returns the URLs without consuming another credit.
- *       Free products (price = 0) and products with no files are rejected.
- *     operationId: unlockProductFiles
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Product ID
- *     responses:
- *       '200':
- *         description: Files unlocked successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     files:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/ProductFileDto'
- *       '400':
- *         description: Product has no files, is free, or was already purchased
- *       '401':
- *         description: Not authenticated
- *       '403':
- *         description: No active subscription or no remaining download credits
- *       '404':
- *         description: Product not found
- */
-router.post('/:id/unlock', authenticate, productController.unlock);
 
 export default router;
