@@ -29,3 +29,9 @@ export enum UploadFolder {
   Subscriptions = 'subscriptions',
   All = 'all',
 }
+
+export enum CartStatus {
+  Active = 'active',
+  CheckedOut = 'checked_out',
+  Expired = 'expired',
+}

@@ -17,6 +17,7 @@ function lsHeaders() {
 
 export interface CreateCheckoutOptions {
   userId: string;
+  cartId?: string;
   productIds: string[];
   totalInCents: number;
   checkoutName: string; // shown as product name on the LS checkout page
@@ -34,6 +35,7 @@ export async function createCheckout(opts: CreateCheckoutOptions): Promise<strin
           custom: {
             user_id: opts.userId,
             products_ids: opts.productIds.join(','),
+            ...(opts.cartId ? { cart_id: opts.cartId } : {}),
           },
         },
         product_options: {
@@ -219,6 +221,7 @@ export interface LsWebhookPayload {
     custom_data: {
       user_id: string;
       products_ids?: string; // comma-separated product IDs (order events only)
+      cart_id?: string;
     } | null;
   };
   data: {

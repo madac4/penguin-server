@@ -10,6 +10,7 @@ const translatedFieldSchema = z.object({
 export const createPropertyDefinitionSchema = z.object({
   name: translatedFieldSchema,
   isActive: z.boolean().optional().default(true),
+  showInListing: z.boolean().optional().default(false),
 });
 
 export type CreatePropertyDefinitionInput = z.infer<typeof createPropertyDefinitionSchema>;
@@ -19,6 +20,7 @@ export type CreatePropertyDefinitionInput = z.infer<typeof createPropertyDefinit
 export const updatePropertyDefinitionSchema = z.object({
   name: translatedFieldSchema.optional(),
   isActive: z.boolean().optional(),
+  showInListing: z.boolean().optional(),
 });
 
 export type UpdatePropertyDefinitionInput = z.infer<typeof updatePropertyDefinitionSchema>;

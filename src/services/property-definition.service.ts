@@ -40,6 +40,7 @@ export async function createPropertyDefinition(
     name: input.name,
     slug,
     isActive: input.isActive,
+    showInListing: input.showInListing,
   });
 
   return toPropertyDefinitionDto(propDef);
@@ -138,6 +139,7 @@ export async function updatePropertyDefinition(
   }
 
   if (input.isActive !== undefined) propDef.isActive = input.isActive;
+  if (input.showInListing !== undefined) propDef.showInListing = input.showInListing;
 
   await propDef.save();
 

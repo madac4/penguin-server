@@ -6,6 +6,7 @@ export interface PropertyDefinitionDto {
   name: ITranslatedField;
   slug: ITranslatedField;
   isActive: boolean;
+  showInListing: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -16,6 +17,7 @@ export function toPropertyDefinitionDto(doc: IPropertyDefinitionDocument): Prope
     name: doc.name,
     slug: doc.slug,
     isActive: doc.isActive,
+    showInListing: doc.showInListing,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };

@@ -48,6 +48,7 @@ export interface ProductDto {
   viewCount: number;
   likeCount: number;
   properties: ProductPropertyDto[];
+  listingProperties: ProductPropertyDetailDto[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -66,7 +67,10 @@ export interface ProductDetailDto extends Omit<ProductDto, 'category' | 'tags' |
   fileAccess: FileAccessDto;
 }
 
-export function toProductDto(doc: IProductDocument): ProductDto {
+export function toProductDto(
+  doc: IProductDocument,
+  listingDefs: Map<string, IPropertyDefinitionDocument> = new Map(),
+): ProductDto {
   return {
     id: doc._id.toString(),
     name: doc.name,
@@ -89,6 +93,14 @@ export function toProductDto(doc: IProductDocument): ProductDto {
       definition: p.definition?.toString() ?? '',
       value: p.value,
     })),
+    listingProperties: (doc.properties ?? [])
+      .filter((p) => listingDefs.has(p.definition?.toString() ?? ''))
+      .map((p) => ({
+        definition: toPropertyDefinitionDto(
+          listingDefs.get(p.definition.toString())!,
+        ),
+        value: p.value,
+      })),
     isActive: doc.isActive,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
@@ -98,6 +110,7 @@ export function toProductDto(doc: IProductDocument): ProductDto {
 export function toProductDetailDto(
   doc: IProductDocument,
   fileAccess: FileAccessDto,
+  listingDefs: Map<string, IPropertyDefinitionDocument> = new Map(),
 ): ProductDetailDto {
   return {
     id: doc._id.toString(),
@@ -122,6 +135,12 @@ export function toProductDetailDto(
       definition: toPropertyDefinitionDto(p.definition as unknown as IPropertyDefinitionDocument),
       value: p.value,
     })),
+    listingProperties: (doc.properties ?? [])
+      .filter((p) => listingDefs.has(p.definition?.toString() ?? ''))
+      .map((p) => ({
+        definition: toPropertyDefinitionDto(listingDefs.get(p.definition.toString())!),
+        value: p.value,
+      })),
     isActive: doc.isActive,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),

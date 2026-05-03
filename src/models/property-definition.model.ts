@@ -5,6 +5,7 @@ export interface IPropertyDefinition {
   name: ITranslatedField;
   slug: ITranslatedField;
   isActive: boolean;
+  showInListing: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,6 +17,7 @@ const propertyDefinitionSchema = new Schema<IPropertyDefinitionDocument>(
     name: { type: translatedFieldSchema, required: true },
     slug: { type: translatedFieldSchema, required: true },
     isActive: { type: Boolean, default: true },
+    showInListing: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

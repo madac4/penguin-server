@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import authRouter from './routes/auth.routes';
+import cartRouter from './routes/cart.routes';
 import categoryRouter from './routes/category.routes';
 import healthRouter from './routes/health.routes';
 import mediaRouter from './routes/media.routes';
@@ -25,6 +26,7 @@ v1Router.get('/', (_req: Request, res: Response) => {
 
 v1Router.use('/property-definitions', propertyDefinitionRouter);
 v1Router.use('/categories', categoryRouter);
+v1Router.use('/carts', cartRouter);
 v1Router.use('/wishlist', wishlistRouter);
 v1Router.use('/products', productRouter);
 v1Router.use('/orders', orderRouter);

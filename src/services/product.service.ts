@@ -179,6 +179,8 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
 
   const sort = SORT_MAP[query.sortBy ?? 'newest'];
 
+  const listingDefs = await buildListingDefsMap();
+
   if (query.search) {
     const needle = query.search;
 
@@ -208,7 +210,7 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
     const paged = scored.slice(start, start + limit);
 
     return paginatedResult(
-      paged.map(({ item }) => toProductDto(item as unknown as IProductDocument)),
+      paged.map(({ item }) => toProductDto(item as unknown as IProductDocument, listingDefs)),
       total,
       page,
       limit,
@@ -223,11 +225,16 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
   ]);
 
   return paginatedResult(
-    items.map((item) => toProductDto(item as unknown as IProductDocument)),
+    items.map((item) => toProductDto(item as unknown as IProductDocument, listingDefs)),
     total,
     page,
     limit,
   );
+}
+
+async function buildListingDefsMap(): Promise<Map<string, IPropertyDefinitionDocument>> {
+  const defs = await PropertyDefinition.find({ showInListing: true, isActive: true }).lean();
+  return new Map(defs.map((d) => [d._id.toString(), d as unknown as IPropertyDefinitionDocument]));
 }
 
 // ─── Update ──────────────────────────────────────────────────────────────────
