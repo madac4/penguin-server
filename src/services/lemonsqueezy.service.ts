@@ -32,7 +32,7 @@ export async function createCheckout(opts: CreateCheckoutOptions): Promise<strin
         checkout_data: {
           custom: {
             user_id: opts.userId,
-            products_ids: opts.productIds,
+            products_ids: opts.productIds.join(','),
           },
         },
         product_options: {
@@ -82,7 +82,7 @@ export interface LsWebhookPayload {
     event_name: 'order_created' | 'order_refunded' | string;
     custom_data: {
       user_id: string;
-      products_ids: string[];
+      products_ids: string; // comma-separated product IDs
     } | null;
   };
   data: {

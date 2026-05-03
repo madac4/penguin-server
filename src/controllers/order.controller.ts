@@ -34,13 +34,17 @@ export const checkout = CatchAsyncErrors(async (req: Request, res: Response): Pr
 
   const totalInCents = products.reduce((sum, p) => sum + Math.round(p.price * 100), 0);
 
-  const checkoutName =
-    products.length === 1
-      ? products[0].name.en
-      : `3D Model Bundle (${products.length} items)`;
+  const isSingle = products.length === 1;
 
-  const thumbnailUrl = products.length === 1 ? products[0].thumbnail || undefined : undefined;
-  const description = products.length === 1 ? products[0].description?.en || undefined : undefined;
+  const checkoutName = isSingle
+    ? products[0].name.en
+    : `3D Model Bundle (${products.length} items)`;
+
+  const description = isSingle
+    ? products[0].description?.en || undefined
+    : products.map((p) => `• ${p.name.en} — $${(p.price).toFixed(2)}`).join('\n');
+
+  const thumbnailUrl = isSingle ? products[0].thumbnail || undefined : undefined;
 
   const checkoutUrl = await lsService.createCheckout({
     userId,
@@ -81,7 +85,7 @@ export const webhook = async (req: Request, res: Response): Promise<void> => {
 
       await orderService.createOrder({
         userId: custom_data.user_id,
-        productIds: custom_data.products_ids,
+        productIds: custom_data.products_ids.split(',').filter(Boolean),
         lsOrderId: payload.data.id,
         total: payload.data.attributes.total,
         currency: payload.data.attributes.currency,
