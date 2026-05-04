@@ -135,6 +135,9 @@ router.get('/:id', planController.getById);
  *                 type: integer
  *                 minimum: 1
  *                 description: Number of free downloads this plan grants per billing cycle
+ *               imageUrl:
+ *                 type: string
+ *                 description: URL returned by POST /media/upload
  *     responses:
  *       '201':
  *         description: Plan created

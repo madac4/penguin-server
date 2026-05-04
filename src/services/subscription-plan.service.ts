@@ -25,6 +25,7 @@ export interface SubscriptionPlanDto {
 export interface RegisterPlanInput {
   lsVariantId: string;
   downloadsPerPeriod: number;
+  imageUrl?: string;
 }
 
 export async function registerPlan(input: RegisterPlanInput): Promise<SubscriptionPlanDto> {
