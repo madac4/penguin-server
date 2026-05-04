@@ -1,4 +1,3 @@
-import { Types } from 'mongoose';
 import type { PaginatedDto } from '@/dtos/common.dto';
 import {
   toProductDetailDto,
@@ -11,6 +10,9 @@ import {
 import { DEFAULT_FUZZY_THRESHOLD, fuzzyScore } from '@/utils/fuzzy.util';
 import { paginatedResult, parsePagination } from '@/utils/pagination.util';
 import { slugify } from '@/utils/slugify.util';
+import { Types } from 'mongoose';
+import { toPropertyDefinitionDto } from '../dtos/property-definition.dto';
+import { toTagDto } from '../dtos/tag.dto';
 import { ErrorHandler } from '../middlewares/error.middleware';
 import type { ICategoryDocument } from '../models/category.model';
 import { Category } from '../models/category.model';
@@ -20,18 +22,15 @@ import { PropertyDefinition } from '../models/property-definition.model';
 import type { ITranslatedField } from '../models/shared.schema';
 import type { ITagDocument } from '../models/tag.model';
 import { Tag } from '../models/tag.model';
-import { toPropertyDefinitionDto } from '../dtos/property-definition.dto';
-import { toTagDto } from '../dtos/tag.dto';
+import { Role } from '../utils/enums';
 import type {
   CreateProductInput,
   ListProductsInput,
   UpdateProductInput,
 } from '../validators/product.validator';
-import * as orderService from './order.service';
 import * as subscriptionService from './subscription.service';
 import * as uploadService from './upload.service';
 import * as wishlistService from './wishlist.service';
-import { Role } from '../utils/enums';
 
 async function validatePropertyDefinitions(
   properties: { definition: string; value: string }[],
@@ -80,7 +79,7 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
     files: input.files,
     category: input.category,
     tags: input.tags,
-    price: input.price,
+    isFree: input.isFree,
     properties: input.properties,
     isActive: input.isActive,
   });
@@ -106,7 +105,7 @@ export async function getProductById(
   await Product.updateOne({ _id: id }, { $inc: { viewCount: 1 } });
 
   const fileAccess = await resolveFileAccess(
-    { id: product._id.toString(), price: product.price, fileCount: product.files.length },
+    { id: product._id.toString(), isFree: product.isFree, fileCount: product.files.length },
     requestingUser,
   );
 
@@ -114,7 +113,7 @@ export async function getProductById(
 }
 
 async function resolveFileAccess(
-  product: { id: string; price: number; fileCount: number },
+  product: { id: string; isFree: boolean; fileCount: number },
   user?: { id: string; role: string },
 ): Promise<FileAccessDto> {
   const open: FileAccessDto = { locked: false, reason: null };
@@ -122,26 +121,20 @@ async function resolveFileAccess(
   if (product.fileCount === 0) return open;
   if (!user) return { locked: true, reason: 'unauthenticated' };
   if (user.role === Role.Administrator) return open;
-  if (product.price === 0) return open;
+  if (product.isFree) return open;
 
-  // Paid product — check direct purchase first
-  if (await orderService.hasPurchased(user.id, product.id)) return open;
-
-  // Fall back to subscription quota
   if (await subscriptionService.hasDownloadQuota(user.id)) return open;
 
   const hasSub = await subscriptionService.getUserSubscription(user.id);
   if (hasSub) return { locked: true, reason: 'quota_exceeded' };
 
-  return { locked: true, reason: 'purchase_required' };
+  return { locked: true, reason: 'subscription_required' };
 }
 
 // ─── Sort map ────────────────────────────────────────────────────────────────
 
 const SORT_MAP: Record<string, Record<string, 1 | -1>> = {
   newest: { createdAt: -1 },
-  price_asc: { price: 1 },
-  price_desc: { price: -1 },
   popular: { viewCount: -1 },
 };
 
@@ -156,13 +149,6 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
 
   // Tag filter — OR across selected tags (any matching tag qualifies the product)
   if (query.tags && query.tags.length > 0) filter.tags = { $in: query.tags };
-
-  if (query.priceMin !== undefined || query.priceMax !== undefined) {
-    const priceFilter: Record<string, number> = {};
-    if (query.priceMin !== undefined) priceFilter.$gte = query.priceMin;
-    if (query.priceMax !== undefined) priceFilter.$lte = query.priceMax;
-    filter.price = priceFilter;
-  }
 
   if (query.formats && query.formats.length > 0) {
     filter['files.format'] = { $in: query.formats };
@@ -280,7 +266,7 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
   if (input.thumbnail !== undefined) product.thumbnail = input.thumbnail;
   if (input.images !== undefined) product.images = input.images;
   if (input.files !== undefined) product.files = input.files as unknown as typeof product.files;
-  if (input.price !== undefined) product.price = input.price;
+  if (input.isFree !== undefined) product.isFree = input.isFree;
   if (input.isActive !== undefined) product.isActive = input.isActive;
 
   if (input.properties !== undefined) {
@@ -300,7 +286,6 @@ export async function getProductFilters(categoryId?: string): Promise<ProductFil
   if (categoryId) match.category = new Types.ObjectId(categoryId);
 
   type FacetResult = {
-    priceRange: { min: number; max: number }[];
     formats: { _id: string }[];
     tagIds: { _id: Types.ObjectId }[];
     propertyValues: { _id: Types.ObjectId; values: string[] }[];
@@ -310,10 +295,6 @@ export async function getProductFilters(categoryId?: string): Promise<ProductFil
     { $match: match },
     {
       $facet: {
-        priceRange: [
-          { $group: { _id: null, min: { $min: '$price' }, max: { $max: '$price' } } },
-          { $project: { _id: 0, min: 1, max: 1 } },
-        ],
         formats: [
           { $unwind: { path: '$files', preserveNullAndEmptyArrays: false } },
           { $group: { _id: '$files.format' } },
@@ -337,13 +318,10 @@ export async function getProductFilters(categoryId?: string): Promise<ProductFil
     },
   ]);
 
-  const priceRange = facet.priceRange[0] ?? { min: 0, max: 0 };
   const formats = facet.formats.map((f) => f._id).filter(Boolean);
 
   const tagIds = facet.tagIds.map((t) => t._id);
-  const tags = tagIds.length
-    ? await Tag.find({ _id: { $in: tagIds } }).lean()
-    : [];
+  const tags = tagIds.length ? await Tag.find({ _id: { $in: tagIds } }).lean() : [];
 
   const defIds = facet.propertyValues.map((p) => p._id);
   const definitions = defIds.length
@@ -364,7 +342,6 @@ export async function getProductFilters(categoryId?: string): Promise<ProductFil
     .filter((p): p is NonNullable<typeof p> => p !== null);
 
   return {
-    priceRange,
     formats,
     tags: tags.map((t) => toTagDto(t as unknown as ITagDocument)),
     properties,

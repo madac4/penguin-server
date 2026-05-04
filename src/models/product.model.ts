@@ -46,7 +46,7 @@ export interface IProduct {
   files: IProductFile[];
   category: Types.ObjectId;
   tags: Types.ObjectId[];
-  price: number;
+  isFree: boolean;
   viewCount: number;
   likeCount: number;
   properties: IProductProperty[];
@@ -67,7 +67,7 @@ const productSchema = new Schema<IProductDocument>(
     files: { type: [productFileSchema], default: [] },
     category: { type: Schema.Types.ObjectId, ref: 'Category', required: true },
     tags: [{ type: Schema.Types.ObjectId, ref: 'Tag' }],
-    price: { type: Number, default: 0, min: 0 },
+    isFree: { type: Boolean, default: false },
     viewCount: { type: Number, default: 0 },
     likeCount: { type: Number, default: 0 },
     properties: { type: [productPropertySchema], default: [] },

@@ -38,6 +38,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
     slug,
     parent: input.parent || null,
     image: input.image || null,
+    icon: input.icon || null,
     sortOrder: input.sortOrder,
     isActive: input.isActive,
   });
@@ -156,6 +157,7 @@ export async function updateCategory(id: string, input: UpdateCategoryInput): Pr
   }
 
   if (input.image !== undefined) category.image = input.image;
+  if (input.icon !== undefined) category.icon = input.icon;
   if (input.sortOrder !== undefined) category.sortOrder = input.sortOrder;
   if (input.isActive !== undefined) category.isActive = input.isActive;
 
@@ -196,7 +198,11 @@ export async function deleteCategory(id: string): Promise<void> {
   await Category.findByIdAndDelete(id);
 
   if (category.image) {
-	await uploadService.deleteFile(category.image).catch(() => {});
+    await uploadService.deleteFile(category.image).catch(() => {});
+  }
+
+  if (category.icon) {
+    await uploadService.deleteFile(category.icon).catch(() => {});
   }
 }
 

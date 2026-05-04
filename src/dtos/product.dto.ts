@@ -8,7 +8,6 @@ import { toPropertyDefinitionDto, type PropertyDefinitionDto } from './property-
 import { toTagDto, type TagDto } from './tag.dto';
 
 export interface ProductFiltersDto {
-  priceRange: { min: number; max: number };
   formats: string[];
   tags: TagDto[];
   properties: {
@@ -44,7 +43,7 @@ export interface ProductDto {
   files: ProductFileDto[];
   category: string;
   tags: string[];
-  price: number;
+  isFree: boolean;
   viewCount: number;
   likeCount: number;
   properties: ProductPropertyDto[];
@@ -57,7 +56,7 @@ export interface ProductDto {
 export interface FileAccessDto {
   locked: boolean;
   // Reason only present when locked — helps the UI choose the right CTA
-  reason: 'unauthenticated' | 'purchase_required' | 'quota_exceeded' | null;
+  reason: 'unauthenticated' | 'subscription_required' | 'quota_exceeded' | null;
 }
 
 export interface ProductDetailDto extends Omit<ProductDto, 'category' | 'tags' | 'properties'> {
@@ -86,7 +85,7 @@ export function toProductDto(
     })),
     category: doc.category?.toString() ?? '',
     tags: doc.tags?.map((t) => t.toString()) ?? [],
-    price: doc.price,
+    isFree: doc.isFree,
     viewCount: doc.viewCount,
     likeCount: doc.likeCount,
     properties: (doc.properties ?? []).map((p) => ({
@@ -128,7 +127,7 @@ export function toProductDetailDto(
     })),
     category: doc.category ? toCategoryDto(doc.category as unknown as ICategoryDocument) : null,
     tags: doc.tags?.map((t) => toTagDto(t as unknown as ITagDocument)) ?? [],
-    price: doc.price,
+    isFree: doc.isFree,
     viewCount: doc.viewCount + 1,
     likeCount: doc.likeCount,
     properties: (doc.properties ?? []).map((p) => ({

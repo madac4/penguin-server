@@ -43,6 +43,10 @@ const router = Router();
  *         image:
  *           type: string
  *           nullable: true
+ *         icon:
+ *           type: string
+ *           nullable: true
+ *           description: SVG icon URL (upload via POST /api/v1/media/upload)
  *         sortOrder:
  *           type: integer
  *         isActive:
@@ -223,6 +227,10 @@ router.get('/:id', authenticate, authorize(Role.Administrator), categoryControll
  *               image:
  *                 type: string
  *                 nullable: true
+ *               icon:
+ *                 type: string
+ *                 nullable: true
+ *                 description: SVG icon URL (upload via POST /api/v1/media/upload first)
  *               sortOrder:
  *                 type: integer
  *                 default: 0
@@ -301,6 +309,10 @@ router.post(
  *               image:
  *                 type: string
  *                 nullable: true
+ *               icon:
+ *                 type: string
+ *                 nullable: true
+ *                 description: SVG icon URL (upload via POST /api/v1/media/upload first)
  *               sortOrder:
  *                 type: integer
  *               isActive:
@@ -334,6 +346,62 @@ router.put(
   authorize(Role.Administrator),
   validateBody(updateCategorySchema),
   categoryController.update,
+);
+
+/**
+ * @openapi
+ * /api/v1/categories/{id}/sort-order:
+ *   patch:
+ *     tags:
+ *       - Categories
+ *     summary: Update category sort order
+ *     description: Updates only the sortOrder of a category. Requires Administrator role.
+ *     operationId: updateCategorySortOrder
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - sortOrder
+ *             properties:
+ *               sortOrder:
+ *                 type: integer
+ *     responses:
+ *       '200':
+ *         description: Sort order updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/CategoryDto'
+ *       '401':
+ *         description: Not authenticated
+ *       '403':
+ *         description: Insufficient permissions
+ *       '404':
+ *         description: Category not found
+ */
+router.patch(
+  '/:id/sort-order',
+  authenticate,
+  authorize(Role.Administrator),
+  categoryController.updateSortOrder,
 );
 
 /**

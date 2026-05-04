@@ -4,7 +4,7 @@ import { MediaType } from './enums';
 
 // ─── Allowed MIME Types ──────────────────────────────────────────────────────
 
-export const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+export const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml'];
 
 export const DOCUMENT_MIMES = ['application/pdf'];
 

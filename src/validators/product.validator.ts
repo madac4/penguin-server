@@ -41,7 +41,7 @@ export const createProductSchema = z.object({
   files: z.array(productFileSchema).optional().default([]),
   category: z.string().min(1, 'Category is required'),
   tags: z.array(z.string()).optional().default([]),
-  price: z.coerce.number().min(0).optional().default(0),
+  isFree: z.boolean().optional().default(false),
   properties: z.array(productPropertySchema).optional().default([]),
   isActive: z.boolean().optional().default(true),
 });
@@ -63,7 +63,7 @@ export const updateProductSchema = z.object({
   files: z.array(productFileSchema).optional(),
   category: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  price: z.coerce.number().min(0).optional(),
+  isFree: z.boolean().optional(),
   properties: z.array(productPropertySchema).optional(),
   isActive: z.boolean().optional(),
 });
@@ -93,12 +93,7 @@ export const listProductsSchema = z.object({
     .enum(['true', 'false'])
     .transform((v) => v === 'true')
     .optional(),
-  sortBy: z
-    .enum(['newest', 'price_asc', 'price_desc', 'popular'])
-    .optional()
-    .default('newest'),
-  priceMin: z.coerce.number().min(0).optional(),
-  priceMax: z.coerce.number().min(0).optional(),
+  sortBy: z.enum(['newest', 'popular']).optional().default('newest'),
   // Comma-separated format labels: ?formats=STL,GLB,OBJ
   formats: z
     .string()

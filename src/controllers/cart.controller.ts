@@ -59,7 +59,7 @@ export const checkout = CatchAsyncErrors(async (req: Request, res: Response): Pr
 
   const description = isSingle
     ? products[0].description?.en || undefined
-    : products.map((p) => `• ${p.name.en} — $${p.price.toFixed(2)}`).join('\n')
+    : products.map((p) => `• ${p.name.en}`).join('\n')
 
   const thumbnailUrl = isSingle ? products[0].thumbnail || undefined : undefined
 

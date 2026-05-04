@@ -1,8 +1,5 @@
 import { ErrorHandler } from '../middlewares/error.middleware';
-import {
-  SubscriptionPlan,
-  type ISubscriptionPlan,
-} from '../models/subscription-plan.model';
+import { SubscriptionPlan, type ISubscriptionPlan } from '../models/subscription-plan.model';
 import { getLsVariant } from './lemonsqueezy.service';
 
 const LS_DASHBOARD = 'https://app.lemonsqueezy.com';
@@ -85,7 +82,10 @@ export interface UpdatePlanInput {
 
 export async function updatePlan(id: string, input: UpdatePlanInput): Promise<SubscriptionPlanDto> {
   if (input.lsVariantId) {
-    const conflict = await SubscriptionPlan.findOne({ lsVariantId: input.lsVariantId, _id: { $ne: id } });
+    const conflict = await SubscriptionPlan.findOne({
+      lsVariantId: input.lsVariantId,
+      _id: { $ne: id },
+    });
     if (conflict) throw new ErrorHandler('This variant ID is already used by another plan', 409);
   }
 
@@ -126,7 +126,7 @@ function mergeWithVariant(
     downloadsPerPeriod: plan.downloadsPerPeriod,
     imageUrl: plan.imageUrl,
     isActive: plan.isActive,
-    lsEditUrl: `${LS_DASHBOARD}/products/${variant.productId}/variants/${variant.id}/edit`,
+    lsEditUrl: `${LS_DASHBOARD}/products/${variant.productId}/variants/${variant.id}`,
     createdAt: plan.createdAt.toISOString(),
   };
 }

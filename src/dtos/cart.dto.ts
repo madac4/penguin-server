@@ -14,7 +14,6 @@ export interface CartDto {
   items: CartItemDto[];
   status: string;
   itemCount: number;
-  total: number;
   expiresAt: string;
   createdAt: string;
   updatedAt: string;
@@ -36,15 +35,12 @@ export function toCartDto(
     })
     .filter((item): item is CartItemDto => item !== null)
 
-  const total = items.reduce((sum, item) => sum + item.product.price, 0)
-
   return {
     id: doc._id.toString(),
     userId: doc.userId.toString(),
     items,
     status: doc.status,
     itemCount: items.length,
-    total,
     expiresAt: doc.expiresAt.toISOString(),
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),

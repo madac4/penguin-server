@@ -3,7 +3,6 @@ import { ErrorHandler } from '../middlewares/error.middleware'
 import { Cart } from '../models/cart.model'
 import { Product } from '../models/product.model'
 import { CartStatus } from '../utils/enums'
-import { hasPurchased } from './order.service'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -36,10 +35,6 @@ export async function addItem(userId: string, productId: string): Promise<CartDt
 
   if (!product) throw new ErrorHandler('Product not found', 404)
   if (!product.isActive) throw new ErrorHandler('Product is not available', 400)
-  if (product.price === 0) throw new ErrorHandler('Free products cannot be added to cart', 400)
-  if (await hasPurchased(userId, productId)) {
-    throw new ErrorHandler('You already own this product', 409)
-  }
 
   const cart = await getOrCreate(userId)
 
@@ -94,24 +89,13 @@ export async function mergeGuestItems(
 
   const uniqueNew = [...new Set(productIds)]
 
-  // Find valid products in one query
-  const products = await Product.find({
-    _id: { $in: uniqueNew },
-    isActive: true,
-    price: { $gt: 0 },
-  }).lean()
+  const products = await Product.find({ _id: { $in: uniqueNew }, isActive: true }).lean()
 
   const validIds = new Set(products.map((p) => p._id.toString()))
 
-  // Filter products the user already owns
-  const ownedChecks = await Promise.all(
-    [...validIds].map(async (id) => ({ id, owned: await hasPurchased(userId, id) })),
-  )
-  const notOwned = new Set(ownedChecks.filter((c) => !c.owned).map((c) => c.id))
-
   const existingIds = new Set(cart.items.map((i) => i.productId.toString()))
 
-  for (const id of notOwned) {
+  for (const id of validIds) {
     if (!existingIds.has(id)) {
       cart.items.push({ productId: id, addedAt: new Date() } as any)
     }
@@ -150,23 +134,10 @@ export async function getCartForCheckout(userId: string): Promise<CartCheckoutDa
 
   if (products.length === 0) throw new ErrorHandler('No valid products in cart', 400)
 
-  const freeProducts = products.filter((p) => p.price === 0)
-  if (freeProducts.length > 0) {
-    throw new ErrorHandler('Cart contains free products that cannot be purchased', 400)
-  }
-
-  for (const product of products) {
-    if (await hasPurchased(userId, product._id.toString())) {
-      throw new ErrorHandler(`You already own "${product.name.en}"`, 400)
-    }
-  }
-
-  const totalInCents = products.reduce((sum, p) => sum + Math.round(p.price * 100), 0)
-
   return {
     cartId: cart._id.toString(),
     productIds: products.map((p) => p._id.toString()),
-    totalInCents,
+    totalInCents: 0,
   }
 }
 

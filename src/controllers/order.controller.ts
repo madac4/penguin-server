@@ -22,18 +22,7 @@ export const checkout = CatchAsyncErrors(async (req: Request, res: Response): Pr
     throw new ErrorHandler('One or more products not found', 404);
   }
 
-  const freeProducts = products.filter((p) => p.price === 0);
-  if (freeProducts.length > 0) {
-    throw new ErrorHandler('Free products cannot be purchased', 400);
-  }
-
-  for (const product of products) {
-    if (await orderService.hasPurchased(userId, product._id.toString())) {
-      throw new ErrorHandler(`You already own "${product.name.en}"`, 400);
-    }
-  }
-
-  const totalInCents = products.reduce((sum, p) => sum + Math.round(p.price * 100), 0);
+  const totalInCents = 0;
 
   const isSingle = products.length === 1;
 
@@ -43,7 +32,7 @@ export const checkout = CatchAsyncErrors(async (req: Request, res: Response): Pr
 
   const description = isSingle
     ? products[0].description?.en || undefined
-    : products.map((p) => `• ${p.name.en} — $${(p.price).toFixed(2)}`).join('\n');
+    : products.map((p) => `• ${p.name.en}`).join('\n');
 
   const thumbnailUrl = isSingle ? products[0].thumbnail || undefined : undefined;
 

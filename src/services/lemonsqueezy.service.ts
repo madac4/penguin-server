@@ -125,7 +125,7 @@ export interface LsVariant {
   id: string;
   name: string;
   description: string | null;
-  price: number; // in dollars
+  price: number;
   interval: 'month' | 'year' | null;
   status: string;
   productId: string;

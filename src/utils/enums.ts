@@ -22,11 +22,12 @@ export enum MediaType {
 }
 
 export enum UploadFolder {
+  Subscriptions = 'subscriptions',
   Categories = 'categories',
   Products = 'products',
   General = 'general',
+  Models = 'models',
   Users = 'users',
-  Subscriptions = 'subscriptions',
   All = 'all',
 }
 

@@ -8,6 +8,7 @@ export interface CategoryDto {
   slug: ITranslatedField;
   parent: string | null;
   image: string | null;
+  icon: string | null;
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
@@ -26,6 +27,7 @@ export function toCategoryDto(doc: ICategoryDocument): CategoryDto {
     slug: doc.slug,
     parent: doc.parent?.toString() ?? null,
     image: doc.image,
+    icon: doc.icon,
     sortOrder: doc.sortOrder,
     isActive: doc.isActive,
     createdAt: doc.createdAt.toISOString(),
