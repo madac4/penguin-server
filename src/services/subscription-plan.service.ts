@@ -77,12 +77,18 @@ export async function getPlanByVariantId(lsVariantId: string) {
 // ─── Update local config only ─────────────────────────────────────────────────
 
 export interface UpdatePlanInput {
+  lsVariantId?: string;
   downloadsPerPeriod?: number;
   imageUrl?: string;
   isActive?: boolean;
 }
 
 export async function updatePlan(id: string, input: UpdatePlanInput): Promise<SubscriptionPlanDto> {
+  if (input.lsVariantId) {
+    const conflict = await SubscriptionPlan.findOne({ lsVariantId: input.lsVariantId, _id: { $ne: id } });
+    if (conflict) throw new ErrorHandler('This variant ID is already used by another plan', 409);
+  }
+
   const plan = await SubscriptionPlan.findByIdAndUpdate(id, input, {
     new: true,
     runValidators: true,

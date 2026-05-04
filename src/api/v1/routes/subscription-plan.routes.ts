@@ -175,6 +175,9 @@ router.post('/', authenticate, authorize(Role.Administrator), planController.cre
  *           schema:
  *             type: object
  *             properties:
+ *               lsVariantId:
+ *                 type: string
+ *                 description: New Lemon Squeezy variant ID
  *               downloadsPerPeriod:
  *                 type: integer
  *                 minimum: 1
