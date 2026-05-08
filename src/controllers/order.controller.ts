@@ -1,7 +1,6 @@
 import type { Request, Response } from 'express';
 import { CatchAsyncErrors, ErrorHandler } from '../middlewares/error.middleware';
 import { Product } from '../models/product.model';
-import * as cartService from '../services/cart.service';
 import * as lsService from '../services/lemonsqueezy.service';
 import * as orderService from '../services/order.service';
 import { success } from '../utils/response.util';
@@ -77,10 +76,6 @@ export const webhook = async (req: Request, res: Response): Promise<void> => {
           currency: payload.data.attributes.currency!,
           receiptUrl: payload.data.attributes.urls!.receipt,
         });
-
-        if (custom_data.cart_id) {
-          await cartService.markCheckedOut(custom_data.cart_id);
-        }
       }
     }
 

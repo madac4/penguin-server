@@ -573,4 +573,47 @@ router.put(
  */
 router.delete('/:id', authenticate, authorize(Role.Administrator), productController.remove);
 
+/**
+ * @openapi
+ * /api/v1/products/{id}/acquire:
+ *   post:
+ *     tags:
+ *       - Products
+ *     summary: Acquire a product
+ *     description: Consumes one download quota from the active subscription and permanently adds the product to the user's library. Optionally assigns it to a collection; defaults to "Uncategorized" if omitted.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               collectionId:
+ *                 type: string
+ *                 description: Optional. Assign to this collection; omit to use Uncategorized.
+ *     responses:
+ *       '201':
+ *         description: Product acquired
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 collectionId:
+ *                   type: string
+ *       '403':
+ *         description: No active subscription or quota exceeded
+ *       '404':
+ *         description: Product not found
+ *       '409':
+ *         description: Already acquired
+ */
+router.post('/:id/acquire', authenticate, productController.acquire);
+
 export default router;

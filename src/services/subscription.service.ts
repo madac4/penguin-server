@@ -1,6 +1,6 @@
 import { ErrorHandler } from '../middlewares/error.middleware';
+import { SubscriptionPlan } from '../models/subscription-plan.model';
 import { Subscription, type SubscriptionStatus } from '../models/subscription.model';
-import type { ISubscriptionPlanDocument } from '../models/subscription-plan.model';
 import type { SubscriptionPlanDto } from './subscription-plan.service';
 import { getPlanByVariantId, getPlanById } from './subscription-plan.service';
 
@@ -21,7 +21,9 @@ export interface SubscriptionDto {
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
-async function toDto(sub: NonNullable<Awaited<ReturnType<typeof Subscription.findOne>>>): Promise<SubscriptionDto> {
+async function toDto(
+  sub: NonNullable<Awaited<ReturnType<typeof Subscription.findOne>>>,
+): Promise<SubscriptionDto> {
   const plan = await getPlanById(sub.planId.toString());
   return {
     id: sub._id.toString(),
@@ -39,26 +41,47 @@ async function toDto(sub: NonNullable<Awaited<ReturnType<typeof Subscription.fin
 
 // ─── Download quota ───────────────────────────────────────────────────────────
 
-export async function hasDownloadQuota(userId: string): Promise<boolean> {
-  const sub = await Subscription.findOne({ userId, status: 'active' });
-  if (!sub) return false;
-  const populated = await sub.populate<{ planId: ISubscriptionPlanDocument }>('planId');
-  return sub.downloadsUsed < populated.planId.downloadsPerPeriod;
+function isEffectivelyActive(sub: { status: string; renewsAt: Date | null }): boolean {
+  if (sub.status === 'active') return true;
+  // Cancelled but still within the paid period
+  if (sub.status === 'cancelled' && sub.renewsAt && sub.renewsAt > new Date()) return true;
+  return false;
 }
 
-/**
- * Decrements the download counter if the user has quota remaining.
- * Returns true if the download is allowed, false otherwise.
- */
-export async function consumeDownload(userId: string): Promise<boolean> {
-  const sub = await Subscription.findOne({ userId, status: 'active' });
-  if (!sub) return false;
-  const populated = await sub.populate<{ planId: ISubscriptionPlanDocument }>('planId');
-  if (sub.downloadsUsed >= populated.planId.downloadsPerPeriod) return false;
+export async function hasDownloadQuota(userId: string): Promise<boolean> {
+  // Not lean — keeps _id as a typed ObjectId for consistent query behaviour
+  const sub = await Subscription.findOne({ userId }).sort({ createdAt: -1 });
+  if (!sub || !isEffectivelyActive(sub)) return false;
+  const plan = await SubscriptionPlan.findById(sub.planId).lean();
+  if (!plan) return false;
+  return sub.downloadsUsed < plan.downloadsPerPeriod;
+}
 
-  sub.downloadsUsed += 1;
-  await sub.save();
-  return true;
+export async function consumeDownload(userId: string): Promise<void> {
+  // Not lean — a lean _id comes back typed as `unknown` in Mongoose's generic
+  // inference, causing updateOne({ _id }) to silently match nothing.
+  const sub = await Subscription.findOne({ userId }).sort({ createdAt: -1 });
+
+  if (!sub) throw new ErrorHandler('No active subscription found', 403);
+
+  if (sub.status === 'expired') throw new ErrorHandler('Your subscription has expired', 403);
+
+  if (sub.status === 'past_due')
+    throw new ErrorHandler('Your subscription payment is past due', 403);
+
+  if (sub.status === 'cancelled') {
+    if (!sub.renewsAt || sub.renewsAt <= new Date())
+      throw new ErrorHandler('Your subscription has been cancelled', 403);
+    // renewsAt is still in the future — grace period, allow
+  }
+
+  const plan = await SubscriptionPlan.findById(sub.planId).lean();
+  if (!plan) throw new ErrorHandler('Subscription plan not found', 500);
+
+  if (sub.downloadsUsed >= plan.downloadsPerPeriod)
+    throw new ErrorHandler('Download quota exceeded for this billing period', 403);
+
+  await Subscription.updateOne({ _id: sub._id }, { $inc: { downloadsUsed: 1 } });
 }
 
 // ─── User-facing queries ──────────────────────────────────────────────────────
@@ -67,7 +90,7 @@ export async function getUserSubscription(userId: string): Promise<SubscriptionD
   const sub = await Subscription.findOne({
     userId,
     status: { $in: ['active', 'cancelled', 'past_due'] },
-  });
+  }).sort({ createdAt: -1 });
   if (!sub) return null;
   return toDto(sub);
 }
