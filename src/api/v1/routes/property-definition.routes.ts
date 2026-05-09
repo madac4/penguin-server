@@ -25,7 +25,17 @@ const router = Router();
  *           $ref: '#/components/schemas/TranslatedField'
  *         slug:
  *           $ref: '#/components/schemas/TranslatedField'
+ *         categories:
+ *           type: array
+ *           items:
+ *             type: string
+ *         values:
+ *           type: array
+ *           items:
+ *             type: string
  *         isActive:
+ *           type: boolean
+ *         showInListing:
  *           type: boolean
  *         createdAt:
  *           type: string
@@ -67,6 +77,11 @@ const router = Router();
  *         name: isActive
  *         schema:
  *           type: boolean
+ *       - in: query
+ *         name: category
+ *         description: Return property definitions assigned to this category ID
+ *         schema:
+ *           type: string
  *     responses:
  *       '200':
  *         description: Paginated list of property definitions
@@ -152,13 +167,29 @@ router.get('/:id', propertyDefinitionController.getById);
  *             properties:
  *               name:
  *                 $ref: '#/components/schemas/TranslatedField'
+ *               categories:
+ *                 type: array
+ *                 minItems: 1
+ *                 items:
+ *                   type: string
+ *                 description: Category IDs this property can be used with
+ *               values:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Optional initial values. Product saves keep this list synchronized.
  *               isActive:
  *                 type: boolean
  *                 default: true
+ *               showInListing:
+ *                 type: boolean
+ *                 default: false
  *           example:
  *             name:
  *               en: "Weight"
  *               ru: "Вес"
+ *             categories:
+ *               - "64abc123abc123abc123abcd"
  *     responses:
  *       '201':
  *         description: Property definition created
@@ -216,7 +247,18 @@ router.post(
  *             properties:
  *               name:
  *                 $ref: '#/components/schemas/TranslatedField'
+ *               categories:
+ *                 type: array
+ *                 minItems: 1
+ *                 items:
+ *                   type: string
+ *               values:
+ *                 type: array
+ *                 items:
+ *                   type: string
  *               isActive:
+ *                 type: boolean
+ *               showInListing:
  *                 type: boolean
  *     responses:
  *       '200':

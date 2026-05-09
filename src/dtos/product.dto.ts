@@ -19,11 +19,13 @@ export interface ProductFiltersDto {
 export interface ProductPropertyDto {
   definition: string;
   value: string;
+  isActive: boolean;
 }
 
 export interface ProductPropertyDetailDto {
   definition: PropertyDefinitionDto;
   value: string;
+  isActive: boolean;
 }
 
 export interface ProductFileDto {
@@ -91,14 +93,16 @@ export function toProductDto(
     properties: (doc.properties ?? []).map((p) => ({
       definition: p.definition?.toString() ?? '',
       value: p.value,
+      isActive: p.isActive ?? true,
     })),
     listingProperties: (doc.properties ?? [])
-      .filter((p) => listingDefs.has(p.definition?.toString() ?? ''))
+      .filter((p) => (p.isActive ?? true) && listingDefs.has(p.definition?.toString() ?? ''))
       .map((p) => ({
         definition: toPropertyDefinitionDto(
           listingDefs.get(p.definition.toString())!,
         ),
         value: p.value,
+        isActive: p.isActive ?? true,
       })),
     isActive: doc.isActive,
     createdAt: doc.createdAt.toISOString(),
@@ -133,12 +137,14 @@ export function toProductDetailDto(
     properties: (doc.properties ?? []).map((p) => ({
       definition: toPropertyDefinitionDto(p.definition as unknown as IPropertyDefinitionDocument),
       value: p.value,
+      isActive: p.isActive ?? true,
     })),
     listingProperties: (doc.properties ?? [])
-      .filter((p) => listingDefs.has(p.definition?.toString() ?? ''))
+      .filter((p) => (p.isActive ?? true) && listingDefs.has(p.definition?.toString() ?? ''))
       .map((p) => ({
         definition: toPropertyDefinitionDto(listingDefs.get(p.definition.toString())!),
         value: p.value,
+        isActive: p.isActive ?? true,
       })),
     isActive: doc.isActive,
     createdAt: doc.createdAt.toISOString(),

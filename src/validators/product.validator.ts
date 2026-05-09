@@ -7,6 +7,13 @@ const translatedFieldSchema = z.object({
   ru: z.string().min(1, 'Russian translation is required').trim(),
 });
 
+const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+const categoryIdSchema = z.string().regex(objectIdRegex, 'Invalid category ID');
+const tagIdSchema = z.string().regex(objectIdRegex, 'Invalid tag ID');
+const propertyDefinitionIdSchema = z
+  .string()
+  .regex(objectIdRegex, 'Invalid property definition ID');
+
 const optionalTranslatedFieldSchema = z
   .object({
     en: z.string().trim().optional().default(''),
@@ -18,8 +25,12 @@ const optionalTranslatedFieldSchema = z
 // ─── Product Property (definition ID + value) ───────────────────────────────
 
 const productPropertySchema = z.object({
-  definition: z.string().min(1, 'Property definition ID is required'),
-  value: z.string().min(1, 'Property value is required').trim(),
+  definition: propertyDefinitionIdSchema,
+  value: z.string().trim().optional().default(''),
+  isActive: z.boolean().optional().default(true),
+}).refine((property) => !property.isActive || property.value.length > 0, {
+  message: 'Property value is required when property is active',
+  path: ['value'],
 });
 
 // ─── Product File (uploaded via media routes, referenced by URL) ─────────────
@@ -39,8 +50,8 @@ export const createProductSchema = z.object({
   thumbnail: z.string().trim().optional().default(''),
   images: z.array(z.string()).optional().default([]),
   files: z.array(productFileSchema).optional().default([]),
-  category: z.string().min(1, 'Category is required'),
-  tags: z.array(z.string()).optional().default([]),
+  category: categoryIdSchema,
+  tags: z.array(tagIdSchema).optional().default([]),
   isFree: z.boolean().optional().default(false),
   properties: z.array(productPropertySchema).optional().default([]),
   isActive: z.boolean().optional().default(true),
@@ -61,8 +72,8 @@ export const updateProductSchema = z.object({
   thumbnail: z.string().trim().optional(),
   images: z.array(z.string()).optional(),
   files: z.array(productFileSchema).optional(),
-  category: z.string().optional(),
-  tags: z.array(z.string()).optional(),
+  category: categoryIdSchema.optional(),
+  tags: z.array(tagIdSchema).optional(),
   isFree: z.boolean().optional(),
   properties: z.array(productPropertySchema).optional(),
   isActive: z.boolean().optional(),
@@ -76,7 +87,7 @@ export const listProductsSchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(20),
   search: z.string().trim().optional(),
-  category: z.string().optional(),
+  category: categoryIdSchema.optional(),
   // Comma-separated tag IDs: ?tags=id1,id2
   tags: z
     .string()
@@ -122,9 +133,16 @@ export const listProductsSchema = z.object({
           if (colonIdx === -1) return null;
           return { definition: s.slice(0, colonIdx).trim(), value: s.slice(colonIdx + 1).trim() };
         })
-        .filter((p): p is { definition: string; value: string } => p !== null && p.definition !== '' && p.value !== '');
+        .filter(
+          (p): p is { definition: string; value: string } =>
+            p !== null && p.definition !== '' && p.value !== '',
+        );
       return pairs.length > 0 ? pairs : undefined;
-    }),
+    })
+    .refine(
+      (pairs) => pairs === undefined || pairs.every((pair) => objectIdRegex.test(pair.definition)),
+      'Invalid property definition ID',
+    ),
 });
 
 export type ListProductsInput = z.infer<typeof listProductsSchema>;

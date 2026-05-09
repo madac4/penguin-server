@@ -33,17 +33,78 @@ import * as downloadService from './download.service';
 import * as subscriptionService from './subscription.service';
 import * as uploadService from './upload.service';
 
+type ProductPropertyInput = { definition: string; value: string; isActive?: boolean };
+
 async function validatePropertyDefinitions(
-  properties: { definition: string; value: string }[],
+  properties: ProductPropertyInput[],
+  categoryId: string,
 ): Promise<void> {
   if (properties.length === 0) return;
 
   const definitionIds = [...new Set(properties.map((p) => p.definition))];
-  const count = await PropertyDefinition.countDocuments({ _id: { $in: definitionIds } });
 
-  if (count !== definitionIds.length) {
+  if (definitionIds.length !== properties.length) {
+    throw new ErrorHandler('Product properties must use each definition only once', 400);
+  }
+
+  const definitions = await PropertyDefinition.find({
+    _id: { $in: definitionIds },
+    isActive: true,
+  })
+    .select('_id categories')
+    .lean();
+
+  if (definitions.length !== definitionIds.length) {
     throw new ErrorHandler('One or more property definitions not found', 404);
   }
+
+  const invalidDefinition = definitions.find(
+    (definition) => !definition.categories?.some((category) => category.toString() === categoryId),
+  );
+
+  if (invalidDefinition) {
+    throw new ErrorHandler('One or more property definitions are not assigned to this category', 400);
+  }
+}
+
+async function syncPropertyDefinitionValues(definitionIds: string[]): Promise<void> {
+  const uniqueDefinitionIds = [...new Set(definitionIds)].filter(Boolean);
+  if (uniqueDefinitionIds.length === 0) return;
+
+  const objectIds = uniqueDefinitionIds.map((id) => new Types.ObjectId(id));
+
+  const groupedValues = await Product.aggregate<{ _id: Types.ObjectId; values: string[] }>([
+    { $unwind: { path: '$properties', preserveNullAndEmptyArrays: false } },
+    {
+      $match: {
+        'properties.definition': { $in: objectIds },
+        'properties.value': { $ne: '' },
+        'properties.isActive': { $ne: false },
+      },
+    },
+    {
+      $group: {
+        _id: '$properties.definition',
+        values: { $addToSet: '$properties.value' },
+      },
+    },
+  ]);
+
+  const valuesByDefinition = new Map(
+    groupedValues.map((item) => [
+      item._id.toString(),
+      item.values.map((value) => value.trim()).filter(Boolean).sort(),
+    ]),
+  );
+
+  await PropertyDefinition.bulkWrite(
+    uniqueDefinitionIds.map((definitionId) => ({
+      updateOne: {
+        filter: { _id: definitionId },
+        update: { $set: { values: valuesByDefinition.get(definitionId) ?? [] } },
+      },
+    })),
+  );
 }
 
 // ─── Create ──────────────────────────────────────────────────────────────────
@@ -58,7 +119,7 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
     if (tagCount !== input.tags.length) throw new ErrorHandler('One or more tags not found', 404);
   }
 
-  await validatePropertyDefinitions(input.properties);
+  await validatePropertyDefinitions(input.properties, input.category);
 
   const slug: ITranslatedField = {
     en: slugify(input.name.en),
@@ -85,6 +146,8 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
     isActive: input.isActive,
   });
 
+  await syncPropertyDefinitionValues(input.properties.map((property) => property.definition));
+
   return toProductDto(product);
 }
 
@@ -98,7 +161,7 @@ export async function getProductById(
     .populate<{ category: ICategoryDocument }>('category')
     .populate<{ tags: ITagDocument[] }>('tags')
     .populate<{
-      properties: { definition: IPropertyDefinitionDocument; value: string }[];
+      properties: { definition: IPropertyDefinitionDocument; value: string; isActive: boolean }[];
     }>('properties.definition');
 
   if (!product) throw new ErrorHandler('Product not found', 404);
@@ -159,7 +222,11 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
   if (query.properties && query.properties.length > 0) {
     filter.properties = {
       $all: query.properties.map((p) => ({
-        $elemMatch: { definition: new Types.ObjectId(p.definition), value: p.value },
+        $elemMatch: {
+          definition: new Types.ObjectId(p.definition),
+          value: p.value,
+          isActive: { $ne: false },
+        },
       })),
     };
   }
@@ -177,7 +244,12 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
       .map((item) => {
         const propertyBest =
           item.properties?.length > 0
-            ? Math.max(...item.properties.map((p) => fuzzyScore(needle, p.value)))
+            ? Math.max(
+                ...item.properties
+                  .filter((p) => p.isActive !== false)
+                  .map((p) => fuzzyScore(needle, p.value)),
+                0,
+              )
             : 0;
 
         const best = Math.max(
@@ -230,6 +302,9 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
 
   if (!product) throw new ErrorHandler('Product not found', 404);
 
+  const previousDefinitionIds = product.properties.map((property) => property.definition.toString());
+  const categoryId = input.category ?? product.category.toString();
+
   if (input.category) {
     const categoryExists = await Category.findById(input.category);
     if (!categoryExists) throw new ErrorHandler('Category not found', 404);
@@ -271,11 +346,23 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
   if (input.isActive !== undefined) product.isActive = input.isActive;
 
   if (input.properties !== undefined) {
-    await validatePropertyDefinitions(input.properties);
+    await validatePropertyDefinitions(input.properties, categoryId);
     product.properties = input.properties as unknown as typeof product.properties;
+  } else if (input.category !== undefined) {
+    await validatePropertyDefinitions(
+      product.properties.map((property) => ({
+        definition: property.definition.toString(),
+        value: property.value,
+        isActive: property.isActive,
+      })),
+      categoryId,
+    );
   }
 
   await product.save();
+
+  const currentDefinitionIds = product.properties.map((property) => property.definition.toString());
+  await syncPropertyDefinitionValues([...previousDefinitionIds, ...currentDefinitionIds]);
 
   return toProductDto(product);
 }
@@ -308,6 +395,7 @@ export async function getProductFilters(categoryId?: string): Promise<ProductFil
         ],
         propertyValues: [
           { $unwind: { path: '$properties', preserveNullAndEmptyArrays: false } },
+          { $match: { 'properties.isActive': { $ne: false }, 'properties.value': { $ne: '' } } },
           {
             $group: {
               _id: '$properties.definition',
@@ -324,23 +412,25 @@ export async function getProductFilters(categoryId?: string): Promise<ProductFil
   const tagIds = facet.tagIds.map((t) => t._id);
   const tags = tagIds.length ? await Tag.find({ _id: { $in: tagIds } }).lean() : [];
 
-  const defIds = facet.propertyValues.map((p) => p._id);
-  const definitions = defIds.length
-    ? await PropertyDefinition.find({ _id: { $in: defIds }, isActive: true }).lean()
-    : [];
+  const propertyFilter: Record<string, unknown> = { isActive: true };
+  if (categoryId) propertyFilter.categories = categoryId;
+  else propertyFilter._id = { $in: facet.propertyValues.map((p) => p._id) };
 
-  const defMap = new Map(definitions.map((d) => [d._id.toString(), d]));
+  const definitions = await PropertyDefinition.find(propertyFilter).sort({ createdAt: -1 }).lean();
+  const valuesByDefinition = new Map(
+    facet.propertyValues.map((property) => [property._id.toString(), property.values]),
+  );
 
-  const properties = facet.propertyValues
-    .map((p) => {
-      const def = defMap.get(p._id.toString());
-      if (!def) return null;
+  const properties = definitions
+    .map((def) => {
+      const values = valuesByDefinition.get(def._id.toString()) ?? [];
+
       return {
         definition: toPropertyDefinitionDto(def as unknown as IPropertyDefinitionDocument),
-        values: [...p.values].sort(),
+        values: [...values].sort(),
       };
     })
-    .filter((p): p is NonNullable<typeof p> => p !== null);
+    .filter((property) => property.values.length > 0);
 
   return {
     formats,
@@ -356,6 +446,8 @@ export async function deleteProduct(id: string): Promise<void> {
 
   if (!product) throw new ErrorHandler('Product not found', 404);
 
+  const definitionIds = product.properties.map((property) => property.definition.toString());
+
   if (product.images.length > 0) {
     await uploadService.deleteFiles(product.images).catch(() => {});
   }
@@ -367,4 +459,5 @@ export async function deleteProduct(id: string): Promise<void> {
   await collectionService.removeProductFromAllCollections(id);
   await downloadService.removeProductFromAllDownloads(id);
   await Product.findByIdAndDelete(id);
+  await syncPropertyDefinitionValues(definitionIds);
 }

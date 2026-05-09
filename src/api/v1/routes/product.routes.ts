@@ -28,6 +28,10 @@ const router = Router();
  *         value:
  *           type: string
  *           description: Property value
+ *         isActive:
+ *           type: boolean
+ *           default: true
+ *           description: Toggle this property on/off for this product. Disabled properties are saved but ignored by filters and listing/search metadata.
  *     ProductPropertyDto:
  *       type: object
  *       properties:
@@ -36,6 +40,8 @@ const router = Router();
  *           description: Property definition ID
  *         value:
  *           type: string
+ *         isActive:
+ *           type: boolean
  *     ProductPropertyDetailDto:
  *       type: object
  *       properties:
@@ -43,6 +49,8 @@ const router = Router();
  *           $ref: '#/components/schemas/PropertyDefinitionDto'
  *         value:
  *           type: string
+ *         isActive:
+ *           type: boolean
  *     ProductFileInput:
  *       type: object
  *       required:

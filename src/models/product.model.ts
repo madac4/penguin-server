@@ -25,12 +25,14 @@ const productFileSchema = new Schema<IProductFile>(
 export interface IProductProperty {
   definition: Types.ObjectId;
   value: string;
+  isActive: boolean;
 }
 
 const productPropertySchema = new Schema<IProductProperty>(
   {
     definition: { type: Schema.Types.ObjectId, ref: 'PropertyDefinition', required: true },
-    value: { type: String, required: true, trim: true },
+    value: { type: String, default: '', trim: true },
+    isActive: { type: Boolean, default: true },
   },
   { _id: false },
 );
