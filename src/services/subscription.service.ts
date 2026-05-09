@@ -1,4 +1,8 @@
 import { ErrorHandler } from '../middlewares/error.middleware';
+import {
+  SubscriptionPayment,
+  type SubscriptionPaymentStatus,
+} from '../models/subscription-payment.model';
 import { SubscriptionPlan } from '../models/subscription-plan.model';
 import { Subscription, type SubscriptionStatus } from '../models/subscription.model';
 import type { SubscriptionPlanDto } from './subscription-plan.service';
@@ -16,6 +20,20 @@ export interface SubscriptionDto {
   downloadsRemaining: number;
   renewsAt: string | null;
   cancelledAt: string | null;
+  createdAt: string;
+}
+
+export interface BillingHistoryDto {
+  id: string;
+  userId: string;
+  subscriptionId: string | null;
+  lsSubscriptionId: string;
+  lsPaymentId: string;
+  status: SubscriptionPaymentStatus;
+  total: number | null;
+  currency: string | null;
+  receiptUrl: string | null;
+  paidAt: string;
   createdAt: string;
 }
 
@@ -57,7 +75,12 @@ export async function hasDownloadQuota(userId: string): Promise<boolean> {
   return sub.downloadsUsed < plan.downloadsPerPeriod;
 }
 
-export async function consumeDownload(userId: string): Promise<void> {
+export interface ConsumedDownloadQuota {
+  subscriptionId: string;
+  subscriptionPlanId: string;
+}
+
+export async function consumeDownload(userId: string): Promise<ConsumedDownloadQuota> {
   // Not lean — a lean _id comes back typed as `unknown` in Mongoose's generic
   // inference, causing updateOne({ _id }) to silently match nothing.
   const sub = await Subscription.findOne({ userId }).sort({ createdAt: -1 });
@@ -82,6 +105,11 @@ export async function consumeDownload(userId: string): Promise<void> {
     throw new ErrorHandler('Download quota exceeded for this billing period', 403);
 
   await Subscription.updateOne({ _id: sub._id }, { $inc: { downloadsUsed: 1 } });
+
+  return {
+    subscriptionId: sub._id.toString(),
+    subscriptionPlanId: sub.planId.toString(),
+  };
 }
 
 // ─── User-facing queries ──────────────────────────────────────────────────────
@@ -93,6 +121,40 @@ export async function getUserSubscription(userId: string): Promise<SubscriptionD
   }).sort({ createdAt: -1 });
   if (!sub) return null;
   return toDto(sub);
+}
+
+function toBillingHistoryDto(
+  payment: NonNullable<Awaited<ReturnType<typeof SubscriptionPayment.findOne>>>,
+): BillingHistoryDto {
+  return {
+    id: payment._id.toString(),
+    userId: payment.userId.toString(),
+    subscriptionId: payment.subscriptionId ? payment.subscriptionId.toString() : null,
+    lsSubscriptionId: payment.lsSubscriptionId,
+    lsPaymentId: payment.lsPaymentId,
+    status: payment.status,
+    total: payment.total,
+    currency: payment.currency,
+    receiptUrl: payment.receiptUrl,
+    paidAt: payment.paidAt.toISOString(),
+    createdAt: payment.createdAt.toISOString(),
+  };
+}
+
+export async function getUserBillingHistory(
+  userId: string,
+  query: { page?: number; limit?: number },
+): Promise<PaginatedDto<BillingHistoryDto>> {
+  const page = Math.max(query.page ?? 1, 1);
+  const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
+  const skip = (page - 1) * limit;
+
+  const [payments, total] = await Promise.all([
+    SubscriptionPayment.find({ userId }).sort({ paidAt: -1 }).skip(skip).limit(limit),
+    SubscriptionPayment.countDocuments({ userId }),
+  ]);
+
+  return paginatedResult(payments.map(toBillingHistoryDto), total, page, limit);
 }
 
 // ─── Webhook handlers ─────────────────────────────────────────────────────────
@@ -136,6 +198,39 @@ export async function handleSubscriptionRenewed(
       downloadsUsed: 0,
       renewsAt: renewsAt ? new Date(renewsAt) : null,
     },
+  );
+}
+
+export interface SubscriptionPaymentInput {
+  lsSubscriptionId: string;
+  lsPaymentId: string;
+  status: SubscriptionPaymentStatus;
+  total?: number | null;
+  currency?: string | null;
+  receiptUrl?: string | null;
+  paidAt?: string | null;
+}
+
+export async function recordSubscriptionPayment(input: SubscriptionPaymentInput): Promise<void> {
+  const subscription = await Subscription.findOne({ lsSubscriptionId: input.lsSubscriptionId });
+  if (!subscription) return;
+
+  await SubscriptionPayment.updateOne(
+    { lsPaymentId: input.lsPaymentId },
+    {
+      $setOnInsert: {
+        userId: subscription.userId,
+        subscriptionId: subscription._id,
+        lsSubscriptionId: input.lsSubscriptionId,
+        lsPaymentId: input.lsPaymentId,
+        status: input.status,
+        total: input.total ?? null,
+        currency: input.currency ?? null,
+        receiptUrl: input.receiptUrl ?? null,
+        paidAt: input.paidAt ? new Date(input.paidAt) : new Date(),
+      },
+    },
+    { upsert: true },
   );
 }
 

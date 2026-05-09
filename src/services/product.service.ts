@@ -28,9 +28,10 @@ import type {
   ListProductsInput,
   UpdateProductInput,
 } from '../validators/product.validator';
+import * as collectionService from './collection.service';
+import * as downloadService from './download.service';
 import * as subscriptionService from './subscription.service';
 import * as uploadService from './upload.service';
-import * as wishlistService from './wishlist.service';
 
 async function validatePropertyDefinitions(
   properties: { definition: string; value: string }[],
@@ -363,6 +364,7 @@ export async function deleteProduct(id: string): Promise<void> {
     await uploadService.deleteFile(product.thumbnail).catch(() => {});
   }
 
-  await wishlistService.removeAllForProduct(id);
+  await collectionService.removeProductFromAllCollections(id);
+  await downloadService.removeProductFromAllDownloads(id);
   await Product.findByIdAndDelete(id);
 }

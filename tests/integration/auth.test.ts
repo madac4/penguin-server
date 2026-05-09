@@ -40,6 +40,19 @@ describe('POST /auth/register', () => {
     const user = await User.findOne({ email: TEST_USER.email });
     expect(user).not.toBeNull();
     expect(user!.isEmailConfirmed).toBe(false);
+    expect(user!.username).toBeNull();
+  });
+
+  it('should allow multiple users to register without usernames', async () => {
+    const first = await request(app)
+      .post(`${API}/register`)
+      .send(TEST_REGISTER_BODY);
+    const second = await request(app)
+      .post(`${API}/register`)
+      .send({ ...TEST_REGISTER_BODY, email: 'second@example.com' });
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
   });
 
   it('should return 409 if email is already registered', async () => {

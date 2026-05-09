@@ -1,6 +1,6 @@
 import { TokensDto } from '@/dtos/auth.dto'
 import { SALT_ROUNDS } from '@/utils/constants'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import { ErrorHandler } from '../middlewares/error.middleware'
 import { Token } from '../models/token.model'
 import { User, type IUserDocument } from '../models/user.model'

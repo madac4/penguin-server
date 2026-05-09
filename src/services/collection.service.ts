@@ -12,6 +12,8 @@ import {
   type CollectionSummaryDto,
 } from '../dtos/collection.dto';
 
+const UNCATEGORIZED = 'Uncategorized';
+
 // ─── Create Collection ────────────────────────────────────────────────────────
 
 export async function createCollection(
@@ -143,6 +145,14 @@ export async function addToCollection(
   collection.items.push({ productId, enrolledAt: new Date() } as any);
   await collection.save();
 
+  await Promise.all([
+    Collection.updateMany(
+      { userId, _id: { $ne: collection._id } },
+      { $pull: { items: { productId } } },
+    ),
+    Download.updateOne({ userId, productId }, { collectionId: collection._id }),
+  ]);
+
   return toCollectionDto(collection);
 }
 
@@ -161,6 +171,25 @@ export async function removeFromCollection(
 
   collection.items.splice(idx, 1);
   await collection.save();
+
+  if (collection.name !== UNCATEGORIZED) {
+    let uncategorized = await Collection.findOne({ userId, name: UNCATEGORIZED });
+    if (!uncategorized) {
+      uncategorized = await Collection.create({ userId, name: UNCATEGORIZED, items: [] });
+    }
+
+    const alreadyUncategorized = uncategorized.items.some(
+      (i) => i.productId.toString() === productId,
+    );
+    if (!alreadyUncategorized) {
+      uncategorized.items.push({ productId, enrolledAt: new Date() } as any);
+      await uncategorized.save();
+    }
+
+    await Download.updateOne({ userId, productId }, { collectionId: uncategorized._id });
+  } else {
+    await Download.updateOne({ userId, productId }, { collectionId: null });
+  }
 
   return toCollectionDto(collection);
 }

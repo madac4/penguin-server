@@ -551,7 +551,7 @@ router.put(
  *     tags:
  *       - Products
  *     summary: Delete a product
- *     description: Deletes a product and removes it from all wishlists. Thumbnail and images are also removed from storage. Requires Administrator role.
+ *     description: Deletes a product and removes it from collections and downloads. Thumbnail and images are also removed from storage. Requires Administrator role.
  *     operationId: deleteProduct
  *     security:
  *       - bearerAuth: []

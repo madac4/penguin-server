@@ -3,7 +3,6 @@ import crypto from 'crypto';
 const LS_API_BASE = 'https://api.lemonsqueezy.com/v1';
 const API_KEY = process.env.LEMON_SQUEEZY_API_KEY!;
 const STORE_ID = process.env.LEMON_SQUEEZY_STORE_ID!;
-const VARIANT_ID = process.env.LEMON_SQUEEZY_VARIANT_ID!;
 const WEBHOOK_SECRET = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET!;
 const SUBSCRIPTION_WEBHOOK_SECRET = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET!;
 
@@ -13,58 +12,6 @@ function lsHeaders() {
     'Content-Type': 'application/vnd.api+json',
     Accept: 'application/vnd.api+json',
   };
-}
-
-export interface CreateCheckoutOptions {
-  userId: string;
-  cartId?: string;
-  productIds: string[];
-  totalInCents: number;
-  checkoutName: string; // shown as product name on the LS checkout page
-  productDescription?: string;
-  thumbnailUrl?: string;
-}
-
-export async function createCheckout(opts: CreateCheckoutOptions): Promise<string> {
-  const body = {
-    data: {
-      type: 'checkouts',
-      attributes: {
-        custom_price: opts.totalInCents,
-        checkout_data: {
-          custom: {
-            user_id: opts.userId,
-            products_ids: opts.productIds.join(','),
-            ...(opts.cartId ? { cart_id: opts.cartId } : {}),
-          },
-        },
-        product_options: {
-          name: opts.checkoutName,
-          ...(opts.productDescription ? { description: opts.productDescription } : {}),
-          ...(opts.thumbnailUrl ? { media: [opts.thumbnailUrl] } : {}),
-          receipt_button_text: 'View your orders',
-        },
-      },
-      relationships: {
-        store: { data: { type: 'stores', id: STORE_ID } },
-        variant: { data: { type: 'variants', id: VARIANT_ID } },
-      },
-    },
-  };
-
-  const res = await fetch(`${LS_API_BASE}/checkouts`, {
-    method: 'POST',
-    headers: lsHeaders(),
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Lemon Squeezy checkout creation failed: ${err}`);
-  }
-
-  const json = (await res.json()) as { data: { attributes: { url: string } } };
-  return json.data.attributes.url;
 }
 
 // ─── Subscription checkout ────────────────────────────────────────────────────
@@ -205,8 +152,6 @@ export function verifySubscriptionWebhookSignature(rawBody: Buffer, signature: s
 // ─── Webhook payload ─────────────────────────────────────────────────────────
 
 export type LsEventName =
-  | 'order_created'
-  | 'order_refunded'
   | 'subscription_created'
   | 'subscription_updated'
   | 'subscription_cancelled'
@@ -220,20 +165,20 @@ export interface LsWebhookPayload {
     event_name: LsEventName;
     custom_data: {
       user_id: string;
-      products_ids?: string; // comma-separated product IDs (order events only)
       cart_id?: string;
     } | null;
   };
   data: {
     id: string;
     attributes: {
-      // order fields
       status?: string;
       refunded?: boolean;
       total?: number;
       currency?: string;
       urls?: { receipt: string };
+      created_at?: string;
       // subscription fields
+      subscription_id?: number | string;
       variant_id?: number;
       renews_at?: string | null;
       ends_at?: string | null;

@@ -39,6 +39,39 @@ const router = Router();
  *         createdAt:
  *           type: string
  *           format: date-time
+ *     BillingHistoryDto:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *         userId:
+ *           type: string
+ *         subscriptionId:
+ *           type: string
+ *           nullable: true
+ *         lsSubscriptionId:
+ *           type: string
+ *         lsPaymentId:
+ *           type: string
+ *         status:
+ *           type: string
+ *           enum: [paid, failed]
+ *         total:
+ *           type: integer
+ *           nullable: true
+ *         currency:
+ *           type: string
+ *           nullable: true
+ *         receiptUrl:
+ *           type: string
+ *           format: uri
+ *           nullable: true
+ *         paidAt:
+ *           type: string
+ *           format: date-time
+ *         createdAt:
+ *           type: string
+ *           format: date-time
  */
 
 /**
@@ -96,7 +129,7 @@ const router = Router();
  *     summary: Lemon Squeezy subscription webhook receiver
  *     description: |
  *       Called by Lemon Squeezy for subscription lifecycle events. Verifies the `X-Signature`
- *       HMAC header using the subscription webhook secret (separate from the orders webhook secret).
+ *       HMAC header using the subscription webhook secret.
  *     operationId: subscriptionWebhook
  *     parameters:
  *       - in: header
@@ -144,6 +177,59 @@ router.post('/checkout', authenticate, subscriptionController.checkout);
  *         description: Not authenticated
  */
 router.get('/me', authenticate, subscriptionController.getMySubscription);
+
+/**
+ * @openapi
+ * /api/v1/subscriptions/billing-history:
+ *   get:
+ *     tags:
+ *       - Subscriptions
+ *     summary: Get current user's billing history
+ *     description: Returns persisted Lemon Squeezy subscription payment events for the authenticated user.
+ *     operationId: getMyBillingHistory
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
+ *     responses:
+ *       '200':
+ *         description: Paginated billing history
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     items:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/BillingHistoryDto'
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *       '401':
+ *         description: Not authenticated
+ */
+router.get('/billing-history', authenticate, subscriptionController.billingHistory);
 
 /**
  * @openapi

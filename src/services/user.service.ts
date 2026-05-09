@@ -1,6 +1,6 @@
 import { toUserDto, toUserDtoList, UserDto } from '@/dtos/user.dto'
 import { SALT_ROUNDS } from '@/utils/constants'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import { ErrorHandler } from '../middlewares/error.middleware'
 import { Token } from '../models/token.model'
 import { User, type IUserDocument } from '../models/user.model'
@@ -64,8 +64,10 @@ export async function updateUser(id: string, input: UpdateUserInput): Promise<Us
   if (!user) throw new ErrorHandler('User not found', 404)
 
   if (input.username !== undefined) {
-    const existing = await User.findOne({ username: input.username, _id: { $ne: id } })
-    if (existing) throw new ErrorHandler('Username is already taken', 409)
+    if (input.username !== null) {
+      const existing = await User.findOne({ username: input.username, _id: { $ne: id } })
+      if (existing) throw new ErrorHandler('Username is already taken', 409)
+    }
     user.username = input.username
   }
 

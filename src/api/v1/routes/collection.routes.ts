@@ -150,7 +150,7 @@ router.delete('/:id', collectionController.remove);
  *     tags:
  *       - Collections
  *     summary: Add an acquired product to a collection
- *     description: Organizes an already-acquired product into a collection. The product must have been acquired first via POST /downloads/:productId.
+ *     description: Organizes an already-acquired product into a collection. The product must have been acquired first via POST /products/{id}/acquire. Moving a product into a named collection removes it from Uncategorized.
  *     security:
  *       - bearerAuth: []
  *     parameters:

@@ -10,10 +10,23 @@ import { consumeDownload } from './subscription.service';
 export const UNCATEGORIZED = 'Uncategorized';
 
 export interface DownloadedProductDto {
+  id: string;
   productId: string;
   product: ProductDto;
   collectionId: string | null;
+  acquisitionSource: string;
+  subscriptionId: string | null;
+  subscriptionPlanId: string | null;
+  quotaConsumed: boolean;
   acquiredAt: string;
+}
+
+export interface ListAllDownloadsQuery {
+  page?: number;
+  limit?: number;
+  userId?: string;
+  productId?: string;
+  collectionId?: string;
 }
 
 // ─── Get or create the Uncategorized collection ───────────────────────────────
@@ -45,9 +58,20 @@ export async function acquireProduct(
     collection = await getOrCreateUncategorized(userId);
   }
 
-  await consumeDownload(userId);
+  const quota = await consumeDownload(userId);
 
-  await Download.create({ userId, productId, collectionId: collection._id });
+  const acquiredAt = new Date();
+  await Download.create({
+    userId,
+    productId,
+    collectionId: collection._id,
+    acquisitionSource: 'subscription_quota',
+    subscriptionId: quota.subscriptionId,
+    subscriptionPlanId: quota.subscriptionPlanId,
+    quotaConsumed: true,
+    acquiredAt,
+    downloadedAt: acquiredAt,
+  });
 
   const alreadyInCollection = collection.items.some((i) => i.productId.toString() === productId);
   if (!alreadyInCollection) {
@@ -91,7 +115,7 @@ export async function getUserDownloads(
   const skip = (page - 1) * limit;
 
   const [downloads, total] = await Promise.all([
-    Download.find({ userId }).sort({ downloadedAt: -1 }).skip(skip).limit(limit).lean(),
+    Download.find({ userId }).sort({ acquiredAt: -1, downloadedAt: -1 }).skip(skip).limit(limit).lean(),
     Download.countDocuments({ userId }),
   ]);
 
@@ -103,11 +127,62 @@ export async function getUserDownloads(
     .map((d) => {
       const product = productMap.get(d.productId.toString());
       if (!product) return null;
+      const acquiredAt = d.acquiredAt ?? d.downloadedAt;
       return {
+        id: d._id.toString(),
         productId: d.productId.toString(),
         product: toProductDto(product as unknown as IProductDocument),
         collectionId: d.collectionId ? d.collectionId.toString() : null,
-        acquiredAt: d.downloadedAt.toISOString(),
+        acquisitionSource: d.acquisitionSource ?? 'migration',
+        subscriptionId: d.subscriptionId ? d.subscriptionId.toString() : null,
+        subscriptionPlanId: d.subscriptionPlanId ? d.subscriptionPlanId.toString() : null,
+        quotaConsumed: d.quotaConsumed ?? true,
+        acquiredAt: acquiredAt.toISOString(),
+      };
+    })
+    .filter(Boolean) as DownloadedProductDto[];
+
+  return paginatedResult(items, total, page, limit);
+}
+
+// ─── Admin: list acquisitions across users ───────────────────────────────────
+
+export async function listAllDownloads(
+  query: ListAllDownloadsQuery,
+): Promise<PaginatedDto<DownloadedProductDto>> {
+  const page = Math.max(query.page ?? 1, 1);
+  const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
+  const skip = (page - 1) * limit;
+
+  const filter: Record<string, unknown> = {};
+  if (query.userId) filter.userId = query.userId;
+  if (query.productId) filter.productId = query.productId;
+  if (query.collectionId) filter.collectionId = query.collectionId;
+
+  const [downloads, total] = await Promise.all([
+    Download.find(filter).sort({ acquiredAt: -1, downloadedAt: -1 }).skip(skip).limit(limit).lean(),
+    Download.countDocuments(filter),
+  ]);
+
+  const productIds = downloads.map((d) => d.productId);
+  const products = await Product.find({ _id: { $in: productIds } }).lean();
+  const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+
+  const items: DownloadedProductDto[] = downloads
+    .map((d) => {
+      const product = productMap.get(d.productId.toString());
+      if (!product) return null;
+      const acquiredAt = d.acquiredAt ?? d.downloadedAt;
+      return {
+        id: d._id.toString(),
+        productId: d.productId.toString(),
+        product: toProductDto(product as unknown as IProductDocument),
+        collectionId: d.collectionId ? d.collectionId.toString() : null,
+        acquisitionSource: d.acquisitionSource ?? 'migration',
+        subscriptionId: d.subscriptionId ? d.subscriptionId.toString() : null,
+        subscriptionPlanId: d.subscriptionPlanId ? d.subscriptionPlanId.toString() : null,
+        quotaConsumed: d.quotaConsumed ?? true,
+        acquiredAt: acquiredAt.toISOString(),
       };
     })
     .filter(Boolean) as DownloadedProductDto[];

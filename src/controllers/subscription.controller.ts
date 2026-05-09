@@ -54,6 +54,19 @@ export const getMySubscription = CatchAsyncErrors(
   },
 );
 
+// ─── GET /subscriptions/billing-history ──────────────────────────────────────
+
+export const billingHistory = CatchAsyncErrors(
+  async (req: Request, res: Response): Promise<void> => {
+    const { page, limit } = req.query as { page?: string; limit?: string };
+    const history = await subscriptionService.getUserBillingHistory(req.user!._id.toString(), {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
+    success(res, history);
+  },
+);
+
 // ─── POST /subscriptions/webhook ─────────────────────────────────────────────
 
 export const webhook = async (req: Request, res: Response): Promise<void> => {
@@ -71,6 +84,9 @@ export const webhook = async (req: Request, res: Response): Promise<void> => {
 
   const payload = req.body as lsService.LsWebhookPayload;
   const { event_name, custom_data } = payload.meta;
+  const lsSubscriptionId = String(
+    payload.data.attributes.subscription_id ?? payload.data.id,
+  );
 
   try {
     if (event_name === 'subscription_created' && custom_data?.user_id) {
@@ -84,9 +100,18 @@ export const webhook = async (req: Request, res: Response): Promise<void> => {
 
     if (event_name === 'subscription_payment_success') {
       await subscriptionService.handleSubscriptionRenewed(
-        payload.data.id,
+        lsSubscriptionId,
         payload.data.attributes.renews_at ?? null,
       );
+      await subscriptionService.recordSubscriptionPayment({
+        lsSubscriptionId,
+        lsPaymentId: payload.data.id,
+        status: 'paid',
+        total: payload.data.attributes.total ?? null,
+        currency: payload.data.attributes.currency ?? null,
+        receiptUrl: payload.data.attributes.urls?.receipt ?? null,
+        paidAt: payload.data.attributes.created_at ?? null,
+      });
     }
 
     if (event_name === 'subscription_cancelled') {
@@ -98,7 +123,16 @@ export const webhook = async (req: Request, res: Response): Promise<void> => {
     }
 
     if (event_name === 'subscription_payment_failed') {
-      await subscriptionService.handleSubscriptionPastDue(payload.data.id);
+      await subscriptionService.handleSubscriptionPastDue(lsSubscriptionId);
+      await subscriptionService.recordSubscriptionPayment({
+        lsSubscriptionId,
+        lsPaymentId: payload.data.id,
+        status: 'failed',
+        total: payload.data.attributes.total ?? null,
+        currency: payload.data.attributes.currency ?? null,
+        receiptUrl: payload.data.attributes.urls?.receipt ?? null,
+        paidAt: payload.data.attributes.created_at ?? null,
+      });
     }
   } catch {
     // Return 200 so LS doesn't retry on business-logic errors

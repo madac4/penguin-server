@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "packageManager": "yarn@1.22.22",
   "engines": {
-    "node": ">=20.0.0",
+    "node": ">=20 <23",
     "yarn": ">=1.22.0"
   },
   "scripts": {
@@ -20,7 +20,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1002.0",
     "@scalar/express-api-reference": "latest",
-    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "ejs": "^4.0.1",
@@ -38,7 +38,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.17",
     "@types/ejs": "^3.1.5",
     "@types/express": "^4.17.21",

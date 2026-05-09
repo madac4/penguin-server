@@ -15,6 +15,10 @@ export const baseSpec = {
   },
   servers: [
     {
+      url: 'https://penguin-server-whhroo-whhroos-projects.vercel.app',
+      description: 'Vercel preview',
+    },
+    {
       url: 'https://penguin-development-19486681fb5f.herokuapp.com',
       description: 'Development',
     },
@@ -70,7 +74,7 @@ export const baseSpec = {
         properties: {
           id: { type: 'string' },
           role: { type: 'string', enum: ['User', 'Administrator'] },
-          username: { type: 'string' },
+          username: { type: 'string', nullable: true },
           firstName: { type: 'string' },
           lastName: { type: 'string' },
           email: { type: 'string', format: 'email' },
@@ -84,7 +88,7 @@ export const baseSpec = {
 		properties: {
 			id: { type: 'string' },
 			role: { type: 'string', enum: ['User', 'Administrator'] },
-			username: { type: 'string' },
+			username: { type: 'string', nullable: true },
           	firstName: { type: 'string' },
           	lastName: { type: 'string' },
           	email: { type: 'string', format: 'email' },
