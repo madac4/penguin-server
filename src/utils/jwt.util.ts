@@ -4,6 +4,8 @@ import { jwtConfig } from '../config/jwt.config';
 export interface JwtPayload {
   userId: string;
   role: string;
+  sessionId?: string;
+  tokenId?: string;
 }
 
 export function signAccessToken(payload: JwtPayload): string {
