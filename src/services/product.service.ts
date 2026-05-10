@@ -209,6 +209,7 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
   const filter: Record<string, unknown> = {};
 
   if (query.isActive !== undefined) filter.isActive = query.isActive;
+  if (query.isFree !== undefined) filter.isFree = query.isFree;
   if (query.category) filter.category = query.category;
 
   // Tag filter — OR across selected tags (any matching tag qualifies the product)

@@ -126,15 +126,22 @@ export async function deleteCollection(userId: string, collectionId: string): Pr
   if (result.deletedCount === 0) throw new ErrorHandler('Collection not found', 404);
 }
 
-// ─── Add an acquired product to a collection ─────────────────────────────────
+// ─── Add an acquired or free product to a collection ─────────────────────────
 
 export async function addToCollection(
   userId: string,
   collectionId: string,
   productId: string,
 ): Promise<CollectionDto> {
-  const acquired = await Download.exists({ userId, productId });
-  if (!acquired) throw new ErrorHandler('Product must be acquired before adding to a collection', 403);
+  const [product, acquired] = await Promise.all([
+    Product.findOne({ _id: productId, isActive: true }).select('_id isFree').lean(),
+    Download.exists({ userId, productId }),
+  ]);
+
+  if (!product) throw new ErrorHandler('Product not found', 404);
+  if (!product.isFree && !acquired) {
+    throw new ErrorHandler('Product must be acquired before adding to a collection', 403);
+  }
 
   const collection = await Collection.findOne({ _id: collectionId, userId });
   if (!collection) throw new ErrorHandler('Collection not found', 404);
@@ -145,13 +152,18 @@ export async function addToCollection(
   collection.items.push({ productId, enrolledAt: new Date() } as any);
   await collection.save();
 
-  await Promise.all([
+  const updates: Promise<unknown>[] = [
     Collection.updateMany(
       { userId, _id: { $ne: collection._id } },
       { $pull: { items: { productId } } },
     ),
-    Download.updateOne({ userId, productId }, { collectionId: collection._id }),
-  ]);
+  ];
+
+  if (acquired) {
+    updates.push(Download.updateOne({ userId, productId }, { collectionId: collection._id }));
+  }
+
+  await Promise.all(updates);
 
   return toCollectionDto(collection);
 }
@@ -171,6 +183,11 @@ export async function removeFromCollection(
 
   collection.items.splice(idx, 1);
   await collection.save();
+
+  const acquired = await Download.exists({ userId, productId });
+  if (!acquired) {
+    return toCollectionDto(collection);
+  }
 
   if (collection.name !== UNCATEGORIZED) {
     let uncategorized = await Collection.findOne({ userId, name: UNCATEGORIZED });

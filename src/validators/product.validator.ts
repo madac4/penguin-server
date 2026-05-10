@@ -104,6 +104,10 @@ export const listProductsSchema = z.object({
     .enum(['true', 'false'])
     .transform((v) => v === 'true')
     .optional(),
+  isFree: z
+    .enum(['true', 'false'])
+    .transform((v) => v === 'true')
+    .optional(),
   sortBy: z.enum(['newest', 'popular']).optional().default('newest'),
   // Comma-separated format labels: ?formats=STL,GLB,OBJ
   formats: z

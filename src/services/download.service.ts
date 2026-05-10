@@ -44,9 +44,6 @@ export async function acquireProduct(
   productId: string,
   collectionId?: string,
 ): Promise<{ collectionId: string }> {
-  const alreadyAcquired = await Download.exists({ userId, productId });
-  if (alreadyAcquired) throw new ErrorHandler('You have already acquired this product', 409);
-
   const product = await Product.findOne({ _id: productId, isActive: true });
   if (!product) throw new ErrorHandler('Product not found', 404);
 
@@ -57,6 +54,24 @@ export async function acquireProduct(
   } else {
     collection = await getOrCreateUncategorized(userId);
   }
+
+  if (product.isFree) {
+    const alreadyInCollection = collection.items.some((i) => i.productId.toString() === productId);
+    if (!alreadyInCollection) {
+      collection.items.push({ productId, enrolledAt: new Date() } as any);
+      await collection.save();
+    }
+
+    await Collection.updateMany(
+      { userId, _id: { $ne: collection._id } },
+      { $pull: { items: { productId } } },
+    );
+
+    return { collectionId: collection._id.toString() };
+  }
+
+  const alreadyAcquired = await Download.exists({ userId, productId });
+  if (alreadyAcquired) throw new ErrorHandler('You have already acquired this product', 409);
 
   const quota = await consumeDownload(userId);
 
@@ -88,11 +103,13 @@ export async function getProductFiles(
   userId: string,
   productId: string,
 ): Promise<{ files: { url: string; filename: string; format: string; size: number }[] }> {
-  const acquired = await Download.exists({ userId, productId });
-  if (!acquired) throw new ErrorHandler('Product not acquired', 403);
-
-  const product = await Product.findById(productId);
+  const product = await Product.findOne({ _id: productId, isActive: true });
   if (!product) throw new ErrorHandler('Product not found', 404);
+
+  if (!product.isFree) {
+    const acquired = await Download.exists({ userId, productId });
+    if (!acquired) throw new ErrorHandler('Product not acquired', 403);
+  }
 
   return {
     files: product.files.map((f) => ({
