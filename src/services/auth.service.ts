@@ -1,6 +1,7 @@
 import { TokensDto } from '@/dtos/auth.dto'
 import { SALT_ROUNDS } from '@/utils/constants'
 import bcrypt from 'bcryptjs'
+import { randomUUID } from 'crypto'
 import { ErrorHandler } from '../middlewares/error.middleware'
 import { Token } from '../models/token.model'
 import { User, type IUserDocument } from '../models/user.model'
@@ -88,24 +89,72 @@ interface TokenPair {
   refreshToken: string;
 }
 
-async function generateTokenPair(user: IUserDocument): Promise<TokenPair> {
+const REFRESH_TOKEN_EXPIRES_MS = 30 * 24 * 60 * 60 * 1000;
+
+function getRefreshTokenExpiresAt(): Date {
+  return new Date(Date.now() + REFRESH_TOKEN_EXPIRES_MS);
+}
+
+function createTokenPair(user: IUserDocument, sessionId: string): TokenPair {
   const payload: JwtPayload = { userId: user._id.toString(), role: user.role };
 
   const accessToken = signAccessToken(payload);
-  const refreshToken = signRefreshToken(payload);
+  const refreshToken = signRefreshToken({
+    ...payload,
+    sessionId,
+    tokenId: randomUUID(),
+  });
 
-  const hashedRefresh = hashToken(refreshToken);
+  return { accessToken, refreshToken };
+}
 
-  await Token.deleteMany({ userId: user._id, type: TokenType.RefreshToken });
+async function createTokenSession(user: IUserDocument): Promise<TokenPair> {
+  const sessionId = randomUUID();
+  const tokens = createTokenPair(user, sessionId);
 
   await Token.create({
     userId: user._id,
     type: TokenType.RefreshToken,
-    token: hashedRefresh,
-    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30d
+    token: hashToken(tokens.refreshToken),
+    sessionId,
+    expiresAt: getRefreshTokenExpiresAt(),
   });
 
-  return { accessToken, refreshToken };
+  return tokens;
+}
+
+async function rotateTokenSession(
+  user: IUserDocument,
+  currentRefreshToken: string,
+  currentSessionId?: string,
+): Promise<TokenPair> {
+  const sessionId = currentSessionId ?? randomUUID();
+  const tokens = createTokenPair(user, sessionId);
+  const currentTokenHash = hashToken(currentRefreshToken);
+
+  const tokenDoc = await Token.findOneAndUpdate(
+    {
+      userId: user._id,
+      type: TokenType.RefreshToken,
+      token: currentTokenHash,
+      expiresAt: { $gt: new Date() },
+      ...(currentSessionId ? { sessionId: currentSessionId } : {}),
+    },
+    {
+      $set: {
+        token: hashToken(tokens.refreshToken),
+        sessionId,
+        expiresAt: getRefreshTokenExpiresAt(),
+      },
+    },
+    { new: true },
+  );
+
+  if (!tokenDoc) {
+    throw new ErrorHandler('Refresh token not found or expired', 401);
+  }
+
+  return tokens;
 }
 
 export async function login(input: LoginInput): Promise<TokensDto> {
@@ -128,7 +177,7 @@ export async function login(input: LoginInput): Promise<TokensDto> {
     throw new ErrorHandler('Your account has been blocked', 403);
   }
 
-  const tokens = await generateTokenPair(user);
+  const tokens = await createTokenSession(user);
 
   return tokens;
 }
@@ -142,19 +191,6 @@ export async function refreshTokens(refreshToken: string): Promise<TokensDto> {
     throw new ErrorHandler('Invalid or expired refresh token', 401);
   }
 
-  const hashedRefresh = hashToken(refreshToken);
-
-  const tokenDoc = await Token.findOne({
-    token: hashedRefresh,
-    type: TokenType.RefreshToken,
-    userId: payload.userId,
-    expiresAt: { $gt: new Date() },
-  });
-
-  if (!tokenDoc) {
-    throw new ErrorHandler('Refresh token not found or expired', 401);
-  }
-
   const user = await User.findById(payload.userId);
   if (!user) {
     throw new ErrorHandler('User not found', 404);
@@ -165,7 +201,7 @@ export async function refreshTokens(refreshToken: string): Promise<TokensDto> {
     throw new ErrorHandler('Your account has been blocked', 403);
   }
 
-  const tokens = await generateTokenPair(user);
+  const tokens = await rotateTokenSession(user, refreshToken, payload.sessionId);
 
   return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
 }

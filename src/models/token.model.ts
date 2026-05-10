@@ -5,6 +5,7 @@ export interface IToken {
   userId: Types.ObjectId;
   type: TokenType;
   token: string;
+  sessionId?: string;
   expiresAt: Date;
   createdAt: Date;
 }
@@ -27,6 +28,9 @@ const tokenSchema = new Schema<ITokenDocument>(
       type: String,
       required: true,
     },
+    sessionId: {
+      type: String,
+    },
     expiresAt: {
       type: Date,
       required: true,
@@ -38,6 +42,7 @@ const tokenSchema = new Schema<ITokenDocument>(
 
 tokenSchema.index({ token: 1, type: 1 });
 tokenSchema.index({ userId: 1, type: 1 });
+tokenSchema.index({ userId: 1, type: 1, sessionId: 1 });
 
 export const Token: Model<ITokenDocument> =
   mongoose.models.Token ?? model<ITokenDocument>('Token', tokenSchema);
