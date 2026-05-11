@@ -1,9 +1,9 @@
-import mongoose, { Schema, model, type Document, type Model } from 'mongoose'
-import { Role } from '../utils/enums'
+import mongoose, { Schema, model, type Document, type Model } from 'mongoose';
+import { Role } from '../utils/enums';
 
 export interface IUser {
   role: Role;
-  username: string;
+  username: string | null;
   firstName: string;
   lastName: string;
   email: string;
@@ -27,9 +27,9 @@ const userSchema = new Schema<IUserDocument>(
     },
     username: {
       type: String,
-      unique: true,
       trim: true,
       lowercase: true,
+      default: null,
     },
     firstName: {
       type: String,
@@ -76,6 +76,14 @@ const userSchema = new Schema<IUserDocument>(
         return rest;
       },
     },
+  },
+);
+
+userSchema.index(
+  { username: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { username: { $type: 'string' } },
   },
 );
 

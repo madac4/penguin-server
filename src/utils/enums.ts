@@ -22,9 +22,17 @@ export enum MediaType {
 }
 
 export enum UploadFolder {
+  Subscriptions = 'subscriptions',
   Categories = 'categories',
   Products = 'products',
   General = 'general',
+  Models = 'models',
   Users = 'users',
   All = 'all',
+}
+
+export enum CartStatus {
+  Active = 'active',
+  CheckedOut = 'checked_out',
+  Expired = 'expired',
 }

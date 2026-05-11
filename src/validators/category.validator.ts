@@ -22,6 +22,7 @@ export const createCategorySchema = z.object({
   description: optionalTranslatedFieldSchema,
   parent: z.string().optional().nullable().default(null),
   image: z.string().optional().nullable().default(null),
+  icon: z.string().optional().nullable().default(null),
   sortOrder: z.coerce.number().int().optional().default(0),
   isActive: z.boolean().optional().default(true),
 });
@@ -40,6 +41,7 @@ export const updateCategorySchema = z.object({
     .optional(),
   parent: z.string().optional().nullable(),
   image: z.string().optional().nullable(),
+  icon: z.string().optional().nullable(),
   sortOrder: z.coerce.number().int().optional(),
   isActive: z.boolean().optional(),
 });

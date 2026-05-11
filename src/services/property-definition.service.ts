@@ -7,6 +7,7 @@ import { DEFAULT_FUZZY_THRESHOLD, fuzzyScore } from '@/utils/fuzzy.util';
 import { paginatedResult, parsePagination } from '@/utils/pagination.util';
 import { slugify } from '@/utils/slugify.util';
 import { ErrorHandler } from '../middlewares/error.middleware';
+import { Category } from '../models/category.model';
 import {
   PropertyDefinition,
   type IPropertyDefinitionDocument,
@@ -18,11 +19,26 @@ import type {
   UpdatePropertyDefinitionInput,
 } from '../validators/property-definition.validator';
 
+function uniqueValues(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort();
+}
+
+async function validateCategories(categoryIds: string[]): Promise<void> {
+  const uniqueCategoryIds = [...new Set(categoryIds)];
+  const count = await Category.countDocuments({ _id: { $in: uniqueCategoryIds } });
+
+  if (count !== uniqueCategoryIds.length) {
+    throw new ErrorHandler('One or more categories not found', 404);
+  }
+}
+
 // ─── Create ──────────────────────────────────────────────────────────────────
 
 export async function createPropertyDefinition(
   input: CreatePropertyDefinitionInput,
 ): Promise<PropertyDefinitionDto> {
+  await validateCategories(input.categories);
+
   const slug: ITranslatedField = {
     en: slugify(input.name.en),
     ru: slugify(input.name.ru),
@@ -39,7 +55,10 @@ export async function createPropertyDefinition(
   const propDef = await PropertyDefinition.create({
     name: input.name,
     slug,
+    categories: [...new Set(input.categories)],
+    values: uniqueValues(input.values),
     isActive: input.isActive,
+    showInListing: input.showInListing,
   });
 
   return toPropertyDefinitionDto(propDef);
@@ -66,6 +85,10 @@ export async function listPropertyDefinitions(
 
   if (query.isActive !== undefined) {
     filter.isActive = query.isActive;
+  }
+
+  if (query.category) {
+    filter.categories = query.category;
   }
 
   if (query.search) {
@@ -138,6 +161,12 @@ export async function updatePropertyDefinition(
   }
 
   if (input.isActive !== undefined) propDef.isActive = input.isActive;
+  if (input.showInListing !== undefined) propDef.showInListing = input.showInListing;
+  if (input.categories !== undefined) {
+    await validateCategories(input.categories);
+    propDef.categories = [...new Set(input.categories)] as unknown as typeof propDef.categories;
+  }
+  if (input.values !== undefined) propDef.values = uniqueValues(input.values);
 
   await propDef.save();
 

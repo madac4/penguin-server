@@ -5,7 +5,10 @@ export interface PropertyDefinitionDto {
   id: string;
   name: ITranslatedField;
   slug: ITranslatedField;
+  categories: string[];
+  values: string[];
   isActive: boolean;
+  showInListing: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -15,7 +18,10 @@ export function toPropertyDefinitionDto(doc: IPropertyDefinitionDocument): Prope
     id: doc._id.toString(),
     name: doc.name,
     slug: doc.slug,
+    categories: doc.categories?.map((category) => category.toString()) ?? [],
+    values: doc.values ?? [],
     isActive: doc.isActive,
+    showInListing: doc.showInListing,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };

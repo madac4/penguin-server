@@ -1,7 +1,6 @@
-import { apiReference } from '@scalar/express-api-reference';
 import cors from 'cors';
 import 'dotenv/config';
-import express from 'express';
+import express, { type RequestHandler } from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
@@ -9,7 +8,40 @@ import v1Router from './api/v1/index';
 import { generateOpenApiSpec } from './docs/openapi.generate';
 import { ErrorHandler, globalErrorHandler } from './middlewares/error.middleware';
 
+type ScalarApiReferenceModule = {
+  apiReference: (options: Record<string, unknown>) => RequestHandler;
+};
+
 const app = express();
+const scalarApiReferenceSpecifier = require.resolve('@scalar/express-api-reference');
+let apiReferenceMiddleware: Promise<RequestHandler> | null = null;
+
+async function getApiReferenceMiddleware(): Promise<RequestHandler> {
+  const importScalar = new Function(
+    'specifier',
+    'return import(specifier)',
+  ) as (specifier: string) => Promise<ScalarApiReferenceModule>;
+
+  apiReferenceMiddleware ??= importScalar(scalarApiReferenceSpecifier).then(({ apiReference }) =>
+    apiReference({
+      spec: { url: '/openapi.json' },
+      theme: 'purple',
+      layout: 'modern',
+      defaultHttpClient: {
+        targetKey: 'javascript',
+        clientKey: 'fetch',
+      },
+      metaData: {
+        title: 'Penguin CMS — API Reference',
+      },
+      authentication: {
+        preferredSecurityScheme: 'bearerAuth',
+      },
+    }),
+  );
+
+  return apiReferenceMiddleware;
+}
 
 // ─── Security & Parsing ───────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
@@ -19,7 +51,13 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req: express.Request, _res, buf) => {
+      req.rawBody = buf;
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: true }));
 
 // ─── Logging ──────────────────────────────────────────────────────────────────
@@ -38,24 +76,14 @@ app.get('/openapi.json', (_req, res) => {
 });
 
 // ─── Scalar API Docs ──────────────────────────────────────────────────────────
-app.use(
-  '/docs',
-  apiReference({
-    spec: { url: '/openapi.json' },
-    theme: 'purple',
-    layout: 'modern',
-    defaultHttpClient: {
-      targetKey: 'javascript',
-      clientKey: 'fetch',
-    },
-    metaData: {
-      title: 'Penguin CMS — API Reference',
-    },
-    authentication: {
-      preferredSecurityScheme: 'bearerAuth',
-    },
-  }),
-);
+app.use('/docs', async (req, res, next) => {
+  try {
+    const middleware = await getApiReferenceMiddleware();
+    middleware(req, res, next);
+  } catch (error) {
+    next(error);
+  }
+});
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_req, _res, next) => {

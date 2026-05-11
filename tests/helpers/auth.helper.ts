@@ -3,7 +3,7 @@ import { User } from '@/models/user.model'
 import { SALT_ROUNDS } from '@/utils/constants'
 import { TokenType } from '@/utils/enums'
 import { hashToken } from '@/utils/token.util'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 
 // ─── Default Test Data ───────────────────────────────────────────────────────
 

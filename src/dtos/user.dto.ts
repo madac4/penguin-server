@@ -4,7 +4,7 @@ import type { Role } from '../utils/enums'
 export interface UserDto {
   id: string;
   role: Role;
-  username: string;
+  username: string | null;
   firstName: string;
   lastName: string;
   email: string;
@@ -44,4 +44,3 @@ export function toUserDtoList(users: IUserDocument[]): UserDto[] {
 		};
 	});
 }
-

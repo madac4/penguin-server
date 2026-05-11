@@ -11,6 +11,7 @@ export interface ICategory {
   slug: ITranslatedField;
   parent: Types.ObjectId | null;
   image: string | null;
+  icon: string | null;
   sortOrder: number;
   isActive: boolean;
   createdAt: Date;
@@ -26,6 +27,7 @@ const categorySchema = new Schema<ICategoryDocument>(
     slug: { type: translatedFieldSchema, required: true },
     parent: { type: Schema.Types.ObjectId, ref: 'Category', default: null },
     image: { type: String, default: null },
+    icon: { type: String, default: null },
     sortOrder: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
   },

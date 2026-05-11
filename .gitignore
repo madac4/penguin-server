@@ -4,4 +4,7 @@ node_modules/
 dist/
 package-lock.json
 .cursor/
-.vercel/
+CLAUDE.md
+.vercel
+AGENTS.md
+docs/

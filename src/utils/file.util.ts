@@ -4,18 +4,25 @@ import { MediaType } from './enums';
 
 // ─── Allowed MIME Types ──────────────────────────────────────────────────────
 
-export const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+export const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml'];
 
 export const DOCUMENT_MIMES = ['application/pdf'];
 
 export const MODEL_MIMES = [
   'model/gltf-binary', // .glb
   'model/gltf+json', // .gltf
-  'application/octet-stream', // fallback for .glb/.obj/.fbx
+  'model/obj', // .obj
+  'model/stl', // .stl
+  'application/octet-stream', // fallback for binary 3D formats
 ];
 
 // Extensions accepted for 3D model files (used as fallback when MIME is octet-stream)
-export const MODEL_EXTENSIONS = ['.glb', '.gltf', '.obj', '.fbx'];
+export const MODEL_EXTENSIONS = [
+  '.glb', '.gltf', '.obj', '.fbx',
+  '.stl', '.amf', '.3ds', '.3dm',
+  '.dae', '.ply', '.step', '.stp',
+  '.iges', '.igs',
+];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -67,4 +74,13 @@ export function getMediaType(mimetype: string, filename: string): MediaType | nu
   if (isDocumentFile(mimetype)) return MediaType.Document;
   if (isModelFile(mimetype, filename)) return MediaType.Model;
   return null;
+}
+
+/**
+ * Derive a human-readable format label from a filename extension.
+ * e.g. "ring.stl" → "STL", "model.glb" → "GLB"
+ */
+export function getFormatFromFilename(filename: string): string {
+  const ext = getFileExtension(filename);
+  return ext ? ext.slice(1).toUpperCase() : 'UNKNOWN';
 }
