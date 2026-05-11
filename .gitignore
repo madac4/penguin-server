@@ -6,3 +6,5 @@ package-lock.json
 .cursor/
 CLAUDE.md
 .vercel
+AGENTS.md
+docs/
