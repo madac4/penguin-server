@@ -32,8 +32,3 @@ export const remove = CatchAsyncErrors(async (req: Request, res: Response): Prom
   await productService.deleteProduct(req.params.id);
   success(res, null, 200, 'Product deleted successfully');
 });
-
-export const download = CatchAsyncErrors(async (req: Request, res: Response): Promise<void> => {
-  const result = await productService.requestDownload(req.params.id, req.user!._id.toString());
-  success(res, result);
-});

@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, type Document, type Model, type Types } from 'mongoose'
+import mongoose, { Schema, model, type Document, type Model } from 'mongoose'
 import { Role } from '../utils/enums'
 
 export interface IUser {
@@ -11,7 +11,6 @@ export interface IUser {
   isEmailConfirmed: boolean;
   isBlocked: boolean;
   pendingEmail?: string;
-  activeSubscription?: Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,11 +66,6 @@ const userSchema = new Schema<IUserDocument>(
       trim: true,
       lowercase: true,
       default: undefined,
-    },
-    activeSubscription: {
-      type: Schema.Types.ObjectId,
-      ref: 'Subscription',
-      default: null,
     },
   },
   {

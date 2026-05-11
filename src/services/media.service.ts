@@ -22,13 +22,6 @@ export async function uploadMedia(
     throw new ErrorHandler('Unsupported file type', 400);
   }
 
-  if (folder === UploadFolder.ProtectedProducts) {
-    const ext = file.originalname.toLowerCase().split('.').pop();
-    if (ext !== 'stl') {
-      throw new ErrorHandler('Only .stl files are allowed in protected/products', 400);
-    }
-  }
-
   const url = await uploadService.uploadFile(file, folder);
   const key = uploadService.extractKeyFromUrl(url);
 

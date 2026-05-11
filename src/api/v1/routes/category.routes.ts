@@ -1,6 +1,5 @@
 import { Router } from 'express'
 import * as categoryController from '../../../controllers/category.controller'
-import * as categoryFilterController from '../../../controllers/category-filter.controller'
 import { authenticate } from '../../../middlewares/auth.middleware'
 import { authorize } from '../../../middlewares/role.middleware'
 import { validateBody, validateQuery } from '../../../middlewares/validate.middleware'
@@ -10,11 +9,6 @@ import {
 	listCategoriesSchema,
 	updateCategorySchema,
 } from '../../../validators/category.validator'
-import {
-	createCategoryFilterSchema,
-	listCategoryFiltersSchema,
-	updateCategoryFilterSchema,
-} from '../../../validators/category-filter.validator'
 
 const router = Router();
 
@@ -162,30 +156,6 @@ router.get('/', validateQuery(listCategoriesSchema), categoryController.list);
  *                     $ref: '#/components/schemas/CategoryTreeDto'
  */
 router.get('/tree', categoryController.getTree);
-
-// ─── Category Filter standalone routes (must come BEFORE /:id routes) ──────
-
-router.get(
-  '/filters/:filterId',
-  authenticate,
-  authorize(Role.Administrator),
-  categoryFilterController.getById,
-);
-
-router.put(
-  '/filters/:filterId',
-  authenticate,
-  authorize(Role.Administrator),
-  validateBody(updateCategoryFilterSchema),
-  categoryFilterController.update,
-);
-
-router.delete(
-  '/filters/:filterId',
-  authenticate,
-  authorize(Role.Administrator),
-  categoryFilterController.remove,
-);
 
 /**
  * @openapi
@@ -400,22 +370,6 @@ router.delete(
   authenticate,
   authorize(Role.Administrator),
   categoryController.remove,
-);
-
-// ─── Category Filters (nested under category) ───────────────────────────────
-
-router.get(
-  '/:id/filters',
-  validateQuery(listCategoryFiltersSchema),
-  categoryFilterController.listByCategory,
-);
-
-router.post(
-  '/:id/filters',
-  authenticate,
-  authorize(Role.Administrator),
-  validateBody(createCategoryFilterSchema),
-  categoryFilterController.create,
 );
 
 export default router;
