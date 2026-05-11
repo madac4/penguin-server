@@ -5,11 +5,7 @@ import { connectDatabase } from './database/connection';
 const PORT = Number(process.env.PORT ?? 4000);
 
 async function start(): Promise<void> {
-  try {
-    await connectDatabase();
-  } catch (err) {
-    console.error('MongoDB connection failed — server will start without database:', err);
-  }
+  await connectDatabase();
 
   const server = app.listen(PORT, () => {
     console.log(`\n🐧 Penguin CMS API`);

@@ -95,14 +95,14 @@ export const baseSpec = {
     contact: { name: 'Penguin Dev Team' },
   },
   servers: [
-    {
-      url: 'https://penguin-server-whhroo-whhroos-projects.vercel.app',
-      description: 'Vercel preview',
-    },
     { url: 'http://localhost:7777', description: 'Local development' },
     {
       url: 'https://penguin-development-19486681fb5f.herokuapp.com',
       description: 'Development',
+    },
+    {
+      url: 'https://penguin-production-7d0d655a35e1.herokuapp.com',
+      description: 'Production',
     },
   ],
   tags: [
