@@ -3,8 +3,13 @@ import path from 'path';
 import { Resend } from 'resend';
 import { mailConfig } from '../config/mail.config';
 
-const resend = new Resend(mailConfig.resendApiKey);
 const TEMPLATES_DIR = path.join(__dirname, '..', 'templates', 'emails');
+let resend: Resend | null = null;
+
+function getResendClient(): Resend {
+  resend ??= new Resend(mailConfig.resendApiKey);
+  return resend;
+}
 
 async function renderTemplate(
   templateName: string,
@@ -32,7 +37,7 @@ export async function sendConfirmationEmail(
     return;
   }
 
-  await resend.emails.send({
+  await getResendClient().emails.send({
     from: mailConfig.from,
     to: email,
     subject: 'Confirm your email — Penguin',
@@ -58,7 +63,7 @@ export async function sendPasswordResetEmail(
     return;
   }
 
-  await resend.emails.send({
+  await getResendClient().emails.send({
     from: mailConfig.from,
     to: email,
     subject: 'Reset your password — Penguin',
@@ -85,7 +90,7 @@ export async function sendEmailChangeEmail(
     return;
   }
 
-  await resend.emails.send({
+  await getResendClient().emails.send({
     from: mailConfig.from,
     to: newEmail,
     subject: 'Confirm your new email — Penguin',
