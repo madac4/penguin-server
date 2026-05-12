@@ -4,6 +4,7 @@ import { translatedFieldSchema, type ITranslatedField } from './shared.schema';
 // ─── Product File (embedded uploaded 3D model file) ──────────────────────────
 
 export interface IProductFile {
+  /** R2 object key/path. Signed URLs are generated only at download time. */
   url: string;
   filename: string;
   format: string;

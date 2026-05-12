@@ -22,7 +22,7 @@ import { PropertyDefinition } from '../models/property-definition.model';
 import type { ITranslatedField } from '../models/shared.schema';
 import type { ITagDocument } from '../models/tag.model';
 import { Tag } from '../models/tag.model';
-import { Role } from '../utils/enums';
+import { Role, UploadFolder } from '../utils/enums';
 import type {
   CreateProductInput,
   ListProductsInput,
@@ -34,6 +34,7 @@ import * as subscriptionService from './subscription.service';
 import * as uploadService from './upload.service';
 
 type ProductPropertyInput = { definition: string; value: string; isActive?: boolean };
+type ProductFileInput = CreateProductInput['files'][number];
 
 async function validatePropertyDefinitions(
   properties: ProductPropertyInput[],
@@ -107,6 +108,21 @@ async function syncPropertyDefinitionValues(definitionIds: string[]): Promise<vo
   );
 }
 
+function normalizeProductFiles(files: ProductFileInput[]): ProductFileInput[] {
+  return files.map((file) => {
+    const key = uploadService.extractKeyFromUrl(file.url);
+
+    if (!key.startsWith(`${UploadFolder.Models}/`)) {
+      throw new ErrorHandler('Product files must be uploaded to the models folder', 400);
+    }
+
+    return {
+      ...file,
+      url: key,
+    };
+  });
+}
+
 // ─── Create ──────────────────────────────────────────────────────────────────
 
 export async function createProduct(input: CreateProductInput): Promise<ProductDto> {
@@ -138,7 +154,7 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
     slug,
     thumbnail: input.thumbnail,
     images: input.images,
-    files: input.files,
+    files: normalizeProductFiles(input.files),
     category: input.category,
     tags: input.tags,
     isFree: input.isFree,
@@ -342,7 +358,9 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
 
   if (input.thumbnail !== undefined) product.thumbnail = input.thumbnail;
   if (input.images !== undefined) product.images = input.images;
-  if (input.files !== undefined) product.files = input.files as unknown as typeof product.files;
+  if (input.files !== undefined) {
+    product.files = normalizeProductFiles(input.files) as unknown as typeof product.files;
+  }
   if (input.isFree !== undefined) product.isFree = input.isFree;
   if (input.isActive !== undefined) product.isActive = input.isActive;
 
