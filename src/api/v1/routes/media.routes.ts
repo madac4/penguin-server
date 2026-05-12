@@ -18,6 +18,7 @@ const router = Router();
 // ─── Multer setup ────────────────────────────────────────────────────────────
 
 const storage = multer.memoryStorage();
+const MAX_UPLOAD_FILE_SIZE = 500 * 1024 * 1024;
 
 const fileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
   if (getMediaType(file.mimetype, file.originalname)) {
@@ -30,13 +31,13 @@ const fileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
 const uploadSingle = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 100 * 1024 * 1024 },
+  limits: { fileSize: MAX_UPLOAD_FILE_SIZE },
 }).single('file') as unknown as RequestHandler;
 
 const uploadMultiple = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 100 * 1024 * 1024 },
+  limits: { fileSize: MAX_UPLOAD_FILE_SIZE },
 }).array('files', 20) as unknown as RequestHandler;
 
 // All media routes require admin
