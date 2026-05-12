@@ -14,7 +14,6 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', validateQuery(listAcquisitionHistorySchema), downloadController.list);
-
 router.get('/:productId/files', downloadController.getFiles);
 
 router.get(
