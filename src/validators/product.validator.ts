@@ -33,10 +33,10 @@ const productPropertySchema = z.object({
   path: ['value'],
 });
 
-// ─── Product File (uploaded via media routes, referenced by URL) ─────────────
+// ─── Product File (uploaded via media routes, referenced by URL or R2 key) ───
 
 const productFileSchema = z.object({
-  url: z.string().url('File URL must be a valid URL'),
+  url: z.string().trim().min(1, 'File URL or path is required'),
   filename: z.string().min(1, 'Filename is required'),
   format: z.string().min(1, 'Format is required'),
   size: z.number().int().min(0, 'Size must be a non-negative integer'),

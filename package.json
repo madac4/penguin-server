@@ -15,10 +15,12 @@
     "heroku-postbuild": "yarn build",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
+    "r2:check": "tsx scripts/check-r2-upload.ts",
     "test": "jest"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1002.0",
+    "@aws-sdk/s3-request-presigner": "3.1002.0",
     "@scalar/express-api-reference": "latest",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",

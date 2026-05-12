@@ -6,8 +6,10 @@ import { Collection } from '../models/collection.model';
 import { Download } from '../models/download.model';
 import { Product, type IProductDocument } from '../models/product.model';
 import { consumeDownload } from './subscription.service';
+import * as uploadService from './upload.service';
 
 export const UNCATEGORIZED = 'Uncategorized';
+const DOWNLOAD_URL_EXPIRES_IN_SECONDS = 60;
 
 export interface DownloadedProductDto {
   id: string;
@@ -102,7 +104,9 @@ export async function acquireProduct(
 export async function getProductFiles(
   userId: string,
   productId: string,
-): Promise<{ files: { url: string; filename: string; format: string; size: number }[] }> {
+): Promise<{
+  files: { url: string; filename: string; format: string; size: number; expiresIn: number }[];
+}> {
   const product = await Product.findOne({ _id: productId, isActive: true });
   if (!product) throw new ErrorHandler('Product not found', 404);
 
@@ -112,12 +116,15 @@ export async function getProductFiles(
   }
 
   return {
-    files: product.files.map((f) => ({
-      url: f.url,
-      filename: f.filename,
-      format: f.format,
-      size: f.size,
-    })),
+    files: await Promise.all(
+      product.files.map(async (f) => ({
+        url: await uploadService.createSignedDownloadUrl(f.url, DOWNLOAD_URL_EXPIRES_IN_SECONDS),
+        filename: f.filename,
+        format: f.format,
+        size: f.size,
+        expiresIn: DOWNLOAD_URL_EXPIRES_IN_SECONDS,
+      })),
+    ),
   };
 }
 

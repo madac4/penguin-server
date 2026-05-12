@@ -124,7 +124,7 @@ export function toProductDetailDto(
     images: doc.images,
     fileAccess,
     files: (doc.files ?? []).map((f) => ({
-      url: fileAccess.locked ? null : f.url,
+      url: null,
       filename: f.filename,
       format: f.format,
       size: f.size,

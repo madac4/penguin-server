@@ -440,7 +440,11 @@ export const baseSpec = {
         type: 'object',
         required: ['url', 'filename', 'format', 'size'],
         properties: {
-          url: { type: 'string', format: 'uri' },
+          url: {
+            type: 'string',
+            description:
+              'R2 object key/path. Existing R2 public URLs are accepted and normalized to a key before storage.',
+          },
           filename: { type: 'string', minLength: 1 },
           format: { type: 'string', minLength: 1 },
           size: { type: 'integer', minimum: 0 },
@@ -450,7 +454,12 @@ export const baseSpec = {
         type: 'object',
         required: ['url', 'filename', 'format', 'size'],
         properties: {
-          url: { type: ['string', 'null'], format: 'uri' },
+          url: {
+            type: ['string', 'null'],
+            format: 'uri',
+            description:
+              'Always null in product list/detail responses. Use the acquired product files endpoint to get signed download URLs.',
+          },
           filename: { type: 'string' },
           format: { type: 'string' },
           size: { type: 'integer' },
@@ -727,7 +736,24 @@ export const baseSpec = {
         type: 'object',
         required: ['files'],
         properties: {
-          files: { type: 'array', items: { $ref: '#/components/schemas/ProductFileInput' } },
+          files: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['url', 'filename', 'format', 'size', 'expiresIn'],
+              properties: {
+                url: {
+                  type: 'string',
+                  format: 'uri',
+                  description: 'Short-lived signed R2 download URL.',
+                },
+                filename: { type: 'string' },
+                format: { type: 'string' },
+                size: { type: 'integer' },
+                expiresIn: { type: 'integer', example: 60 },
+              },
+            },
+          },
         },
       },
       AcquireProductRequest: {
