@@ -1,5 +1,7 @@
 import type { PaginatedDto } from '@/dtos/common.dto';
 import { toProductDto, type ProductDto } from '@/dtos/product.dto';
+import { User } from '@/models/user.model';
+import { Role } from '@/utils/enums';
 import { paginatedResult } from '@/utils/pagination.util';
 import { ErrorHandler } from '../middlewares/error.middleware';
 import { Collection } from '../models/collection.model';
@@ -112,7 +114,9 @@ export async function getProductFiles(
 
   if (!product.isFree) {
     const acquired = await Download.exists({ userId, productId });
-    if (!acquired) throw new ErrorHandler('Product not acquired', 403);
+    const user = await User.findOne({ _id: userId });
+    if (!acquired && user?.role !== Role.Administrator)
+      throw new ErrorHandler('Product not acquired', 403);
   }
 
   return {
@@ -139,7 +143,11 @@ export async function getUserDownloads(
   const skip = (page - 1) * limit;
 
   const [downloads, total] = await Promise.all([
-    Download.find({ userId }).sort({ acquiredAt: -1, downloadedAt: -1 }).skip(skip).limit(limit).lean(),
+    Download.find({ userId })
+      .sort({ acquiredAt: -1, downloadedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
     Download.countDocuments({ userId }),
   ]);
 
