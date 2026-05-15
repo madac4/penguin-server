@@ -19,15 +19,22 @@ import type {
   UpdatePropertyDefinitionInput,
 } from '../validators/property-definition.validator';
 
+const PROPERTY_NAME_CONFLICT_MESSAGE =
+  'A property with this English or Russian name already exists';
+
 function uniqueValues(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort();
 }
 
-async function validateCategories(categoryIds: string[]): Promise<void> {
-  const uniqueCategoryIds = [...new Set(categoryIds)];
-  const count = await Category.countDocuments({ _id: { $in: uniqueCategoryIds } });
+function uniqueCategoryIds(categoryIds: string[]): string[] {
+  return [...new Set(categoryIds)];
+}
 
-  if (count !== uniqueCategoryIds.length) {
+async function validateCategories(categoryIds: string[]): Promise<void> {
+  const uniqueIds = uniqueCategoryIds(categoryIds);
+  const count = await Category.countDocuments({ _id: { $in: uniqueIds } });
+
+  if (count !== uniqueIds.length) {
     throw new ErrorHandler('One or more categories not found', 404);
   }
 }
@@ -44,24 +51,39 @@ export async function createPropertyDefinition(
     ru: slugify(input.name.ru),
   };
 
-  const existingSlug = await PropertyDefinition.findOne({
+  const slugMatches = await PropertyDefinition.find({
     $or: [{ 'slug.en': slug.en }, { 'slug.ru': slug.ru }],
   });
 
-  if (existingSlug) {
-    throw new ErrorHandler('A property with this name already exists', 409);
+  if (slugMatches.length === 0) {
+    const propDef = await PropertyDefinition.create({
+      name: input.name,
+      slug,
+      categories: uniqueCategoryIds(input.categories),
+      values: uniqueValues(input.values),
+      isActive: input.isActive,
+      showInListing: input.showInListing,
+    });
+
+    return toPropertyDefinitionDto(propDef);
   }
 
-  const propDef = await PropertyDefinition.create({
-    name: input.name,
-    slug,
-    categories: [...new Set(input.categories)],
-    values: uniqueValues(input.values),
-    isActive: input.isActive,
-    showInListing: input.showInListing,
-  });
+  const exactMatch = slugMatches.find(
+    (item) => item.slug.en === slug.en && item.slug.ru === slug.ru,
+  );
 
-  return toPropertyDefinitionDto(propDef);
+  if (!exactMatch) {
+    throw new ErrorHandler(PROPERTY_NAME_CONFLICT_MESSAGE, 409);
+  }
+
+  const categories = uniqueCategoryIds([
+    ...exactMatch.categories.map((category) => category.toString()),
+    ...input.categories,
+  ]);
+  exactMatch.categories = categories as unknown as typeof exactMatch.categories;
+  await exactMatch.save();
+
+  return toPropertyDefinitionDto(exactMatch);
 }
 
 // ─── Get by ID ───────────────────────────────────────────────────────────────
@@ -156,7 +178,7 @@ export async function updatePropertyDefinition(
     });
 
     if (existingSlug) {
-      throw new ErrorHandler('A property with this name already exists', 409);
+      throw new ErrorHandler(PROPERTY_NAME_CONFLICT_MESSAGE, 409);
     }
   }
 
@@ -164,7 +186,7 @@ export async function updatePropertyDefinition(
   if (input.showInListing !== undefined) propDef.showInListing = input.showInListing;
   if (input.categories !== undefined) {
     await validateCategories(input.categories);
-    propDef.categories = [...new Set(input.categories)] as unknown as typeof propDef.categories;
+    propDef.categories = uniqueCategoryIds(input.categories) as unknown as typeof propDef.categories;
   }
   if (input.values !== undefined) propDef.values = uniqueValues(input.values);
 
