@@ -1,11 +1,22 @@
-import { ICategoryDocument } from '@/models/category.model';
-import { IPropertyDefinitionDocument } from '@/models/property-definition.model';
-import { ITagDocument } from '@/models/tag.model';
+import type { ICategoryDocument } from '@/models/category.model';
+import type { IPropertyDefinitionDocument } from '@/models/property-definition.model';
+import type { ITagDocument } from '@/models/tag.model';
 import type { IProductDocument } from '../models/product.model';
 import type { ITranslatedField } from '../models/shared.schema';
 import { toCategoryDto, type CategoryDto } from './category.dto';
 import { toPropertyDefinitionDto, type PropertyDefinitionDto } from './property-definition.dto';
 import { toTagDto, type TagDto } from './tag.dto';
+
+function isPopulatedDocument<T extends { _id: unknown; createdAt: Date; updatedAt: Date }>(
+  value: unknown,
+): value is T {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'createdAt' in value &&
+    'updatedAt' in value
+  );
+}
 
 export interface ProductFiltersDto {
   formats: string[];
@@ -129,16 +140,27 @@ export function toProductDetailDto(
       format: f.format,
       size: f.size,
     })),
-    category: doc.category ? toCategoryDto(doc.category as unknown as ICategoryDocument) : null,
-    tags: doc.tags?.map((t) => toTagDto(t as unknown as ITagDocument)) ?? [],
+    category: isPopulatedDocument<ICategoryDocument>(doc.category)
+      ? toCategoryDto(doc.category)
+      : null,
+    tags:
+      (doc.tags as unknown[])
+        ?.filter((tag): tag is ITagDocument => isPopulatedDocument<ITagDocument>(tag))
+        .map(toTagDto) ?? [],
     isFree: doc.isFree,
     viewCount: doc.viewCount + 1,
     likeCount: doc.likeCount,
-    properties: (doc.properties ?? []).map((p) => ({
-      definition: toPropertyDefinitionDto(p.definition as unknown as IPropertyDefinitionDocument),
-      value: p.value,
-      isActive: p.isActive ?? true,
-    })),
+    properties: (doc.properties ?? [])
+      .filter((p) =>
+        isPopulatedDocument<IPropertyDefinitionDocument>(p.definition as unknown),
+      )
+      .map((p) => ({
+        definition: toPropertyDefinitionDto(
+          p.definition as unknown as IPropertyDefinitionDocument,
+        ),
+        value: p.value,
+        isActive: p.isActive ?? true,
+      })),
     listingProperties: (doc.properties ?? [])
       .filter((p) => (p.isActive ?? true) && listingDefs.has(p.definition?.toString() ?? ''))
       .map((p) => ({

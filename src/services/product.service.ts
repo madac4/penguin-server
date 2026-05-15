@@ -64,7 +64,10 @@ async function validatePropertyDefinitions(
   );
 
   if (invalidDefinition) {
-    throw new ErrorHandler('One or more property definitions are not assigned to this category', 400);
+    throw new ErrorHandler(
+      'One or more property definitions are not assigned to this category',
+      400,
+    );
   }
 }
 
@@ -94,7 +97,10 @@ async function syncPropertyDefinitionValues(definitionIds: string[]): Promise<vo
   const valuesByDefinition = new Map(
     groupedValues.map((item) => [
       item._id.toString(),
-      item.values.map((value) => value.trim()).filter(Boolean).sort(),
+      item.values
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .sort(),
     ]),
   );
 
@@ -319,7 +325,9 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
 
   if (!product) throw new ErrorHandler('Product not found', 404);
 
-  const previousDefinitionIds = product.properties.map((property) => property.definition.toString());
+  const previousDefinitionIds = product.properties.map((property) =>
+    property.definition.toString(),
+  );
   const categoryId = input.category ?? product.category.toString();
 
   if (input.category) {
