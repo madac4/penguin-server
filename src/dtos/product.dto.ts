@@ -10,11 +10,14 @@ import { toTagDto, type TagDto } from './tag.dto';
 function isPopulatedDocument<T extends { _id: unknown; createdAt: Date; updatedAt: Date }>(
   value: unknown,
 ): value is T {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const doc = value as Record<string, unknown>;
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    'createdAt' in value &&
-    'updatedAt' in value
+    '_id' in doc &&
+    doc._id !== undefined &&
+    doc.createdAt instanceof Date &&
+    doc.updatedAt instanceof Date
   );
 }
 
@@ -143,10 +146,9 @@ export function toProductDetailDto(
     category: isPopulatedDocument<ICategoryDocument>(doc.category)
       ? toCategoryDto(doc.category)
       : null,
-    tags:
-      (doc.tags as unknown[])
-        ?.filter((tag): tag is ITagDocument => isPopulatedDocument<ITagDocument>(tag))
-        .map(toTagDto) ?? [],
+    tags: ((doc.tags ?? []) as unknown[])
+      .filter((tag): tag is ITagDocument => isPopulatedDocument<ITagDocument>(tag))
+      .map(toTagDto),
     isFree: doc.isFree,
     viewCount: doc.viewCount + 1,
     likeCount: doc.likeCount,
