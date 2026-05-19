@@ -23,7 +23,7 @@ router.get('/:id', tagController.getById);
 router.post(
   '/',
   authenticate,
-  authorize(Role.Administrator),
+  authorize(Role.Administrator, Role.Moderator),
   validateBody(createTagSchema),
   tagController.create,
 );
@@ -31,7 +31,7 @@ router.post(
 router.put(
   '/:id',
   authenticate,
-  authorize(Role.Administrator),
+  authorize(Role.Administrator, Role.Moderator),
   validateBody(updateTagSchema),
   tagController.update,
 );

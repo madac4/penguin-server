@@ -25,7 +25,7 @@ router.get('/:id', optionalAuthenticate, productController.getById);
 router.post(
   '/',
   authenticate,
-  authorize(Role.Administrator),
+  authorize(Role.Administrator, Role.Moderator),
   validateBody(createProductSchema),
   productController.create,
 );
@@ -33,7 +33,7 @@ router.post(
 router.put(
   '/:id',
   authenticate,
-  authorize(Role.Administrator),
+  authorize(Role.Administrator, Role.Moderator),
   validateBody(updateProductSchema),
   productController.update,
 );

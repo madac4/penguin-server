@@ -206,7 +206,7 @@ async function resolveFileAccess(
 
   if (product.fileCount === 0) return open;
   if (!user) return { locked: true, reason: 'unauthenticated' };
-  if (user.role === Role.Administrator) return open;
+  if (user.role === Role.Administrator || user.role === Role.Moderator) return open;
   if (product.isFree) return open;
 
   if (await subscriptionService.hasDownloadQuota(user.id)) return open;

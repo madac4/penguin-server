@@ -18,14 +18,19 @@ router.get('/', validateQuery(listCategoriesSchema), categoryController.list);
 
 router.get('/tree', categoryController.getTree);
 
-router.get('/:id', authenticate, authorize(Role.Administrator), categoryController.getById);
+router.get(
+  '/:id',
+  authenticate,
+  authorize(Role.Administrator, Role.Moderator),
+  categoryController.getById,
+);
 
 // ─── Admin Routes ────────────────────────────────────────────────────────────
 
 router.post(
   '/',
   authenticate,
-  authorize(Role.Administrator),
+  authorize(Role.Administrator, Role.Moderator),
   validateBody(createCategorySchema),
   categoryController.create,
 );
@@ -33,7 +38,7 @@ router.post(
 router.put(
   '/:id',
   authenticate,
-  authorize(Role.Administrator),
+  authorize(Role.Administrator, Role.Moderator),
   validateBody(updateCategorySchema),
   categoryController.update,
 );
@@ -41,7 +46,7 @@ router.put(
 router.patch(
   '/:id/sort-order',
   authenticate,
-  authorize(Role.Administrator),
+  authorize(Role.Administrator, Role.Moderator),
   categoryController.updateSortOrder,
 );
 

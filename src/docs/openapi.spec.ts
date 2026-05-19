@@ -172,7 +172,7 @@ export const baseSpec = {
         ],
         properties: {
           id: { type: 'string' },
-          role: { type: 'string', enum: ['User', 'Administrator'] },
+          role: { type: 'string', enum: ['User', 'Moderator', 'Administrator'] },
           username: { type: ['string', 'null'] },
           firstName: { type: 'string' },
           lastName: { type: 'string' },
@@ -259,7 +259,7 @@ export const baseSpec = {
               { type: 'null' },
             ],
           },
-          role: { type: 'string', enum: ['User', 'Administrator'] },
+          role: { type: 'string', enum: ['User', 'Moderator', 'Administrator'] },
         },
       },
       ChangeUserPasswordRequest: {
@@ -1076,7 +1076,7 @@ export const baseSpec = {
           {
             in: 'query',
             name: 'role',
-            schema: { type: 'string', enum: ['Administrator', 'User'] },
+            schema: { type: 'string', enum: ['Administrator', 'Moderator', 'User'] },
           },
           { in: 'query', name: 'isBlocked', schema: { type: 'boolean' } },
         ],
