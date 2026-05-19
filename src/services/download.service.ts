@@ -107,7 +107,14 @@ export async function getProductFiles(
   userId: string,
   productId: string,
 ): Promise<{
-  files: { url: string; filename: string; format: string; size: number; expiresIn: number }[];
+  files: {
+    url: string;
+    filename: string;
+    label: string;
+    format: string;
+    size: number;
+    expiresIn: number;
+  }[];
 }> {
   const product = await Product.findOne({ _id: productId, isActive: true });
   if (!product) throw new ErrorHandler('Product not found', 404);
@@ -124,6 +131,7 @@ export async function getProductFiles(
       product.files.map(async (f) => ({
         url: await uploadService.createSignedDownloadUrl(f.url, DOWNLOAD_URL_EXPIRES_IN_SECONDS),
         filename: f.filename,
+        label: f.label ?? '',
         format: f.format,
         size: f.size,
         expiresIn: DOWNLOAD_URL_EXPIRES_IN_SECONDS,

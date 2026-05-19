@@ -7,6 +7,8 @@ export interface IProductFile {
   /** R2 object key/path. Signed URLs are generated only at download time. */
   url: string;
   filename: string;
+  /** Optional product variant label, e.g. ring size or model size. */
+  label: string;
   format: string;
   size: number;
 }
@@ -15,6 +17,7 @@ const productFileSchema = new Schema<IProductFile>(
   {
     url: { type: String, required: true },
     filename: { type: String, required: true },
+    label: { type: String, default: '', trim: true },
     format: { type: String, required: true },
     size: { type: Number, required: true },
   },
@@ -25,7 +28,9 @@ const productFileSchema = new Schema<IProductFile>(
 
 export interface IProductProperty {
   definition: Types.ObjectId;
+  /** Legacy single-value field kept for backward compatibility. */
   value: string;
+  values: string[];
   isActive: boolean;
 }
 
@@ -33,6 +38,7 @@ const productPropertySchema = new Schema<IProductProperty>(
   {
     definition: { type: Schema.Types.ObjectId, ref: 'PropertyDefinition', required: true },
     value: { type: String, default: '', trim: true },
+    values: { type: [String], default: [] },
     isActive: { type: Boolean, default: true },
   },
   { _id: false },

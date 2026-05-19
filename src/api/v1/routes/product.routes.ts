@@ -5,6 +5,7 @@ import { authorize } from '../../../middlewares/role.middleware';
 import { validateBody, validateQuery } from '../../../middlewares/validate.middleware';
 import { Role } from '../../../utils/enums';
 import {
+  addProductFilesSchema,
   createProductSchema,
   listProductsSchema,
   updateProductSchema,
@@ -25,7 +26,7 @@ router.get('/:id', optionalAuthenticate, productController.getById);
 router.post(
   '/',
   authenticate,
-  authorize(Role.Administrator),
+  authorize(Role.Administrator, Role.Moderator),
   validateBody(createProductSchema),
   productController.create,
 );
@@ -33,9 +34,17 @@ router.post(
 router.put(
   '/:id',
   authenticate,
-  authorize(Role.Administrator),
+  authorize(Role.Administrator, Role.Moderator),
   validateBody(updateProductSchema),
   productController.update,
+);
+
+router.post(
+  '/:id/files',
+  authenticate,
+  authorize(Role.Administrator, Role.Moderator),
+  validateBody(addProductFilesSchema),
+  productController.addFiles,
 );
 
 router.delete('/:id', authenticate, authorize(Role.Administrator), productController.remove);

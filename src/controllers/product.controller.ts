@@ -4,6 +4,7 @@ import * as downloadService from '../services/download.service';
 import * as productService from '../services/product.service';
 import { success } from '../utils/response.util';
 import type {
+  AddProductFilesInput,
   CreateProductInput,
   ListProductsInput,
   UpdateProductInput,
@@ -30,6 +31,14 @@ export const list = CatchAsyncErrors(async (req: Request, res: Response): Promis
 export const update = CatchAsyncErrors(async (req: Request, res: Response): Promise<void> => {
   const product = await productService.updateProduct(req.params.id, req.body as UpdateProductInput);
   success(res, product, 200, 'Product updated successfully');
+});
+
+export const addFiles = CatchAsyncErrors(async (req: Request, res: Response): Promise<void> => {
+  const product = await productService.addProductFiles(
+    req.params.id,
+    req.body as AddProductFilesInput,
+  );
+  success(res, product, 200, 'Product files added successfully');
 });
 
 export const remove = CatchAsyncErrors(async (req: Request, res: Response): Promise<void> => {

@@ -40,21 +40,46 @@ const uploadMultiple = multer({
   limits: { fileSize: MAX_UPLOAD_FILE_SIZE },
 }).array('files', 20) as unknown as RequestHandler;
 
-// All media routes require admin
-router.use(authenticate, authorize(Role.Administrator));
+// Media library is editable by moderators, but destructive actions stay admin-only.
+router.use(authenticate);
 
-router.get('/', validateQuery(listMediaSchema), mediaController.list);
+router.get(
+  '/',
+  authorize(Role.Administrator, Role.Moderator),
+  validateQuery(listMediaSchema),
+  mediaController.list,
+);
 
-router.get('/:id', mediaController.getById);
+router.get('/:id', authorize(Role.Administrator, Role.Moderator), mediaController.getById);
 
-router.post('/upload', uploadSingle, mediaController.upload);
+router.post(
+  '/upload',
+  authorize(Role.Administrator, Role.Moderator),
+  uploadSingle,
+  mediaController.upload,
+);
 
-router.post('/upload/batch', uploadMultiple, mediaController.uploadBatch);
+router.post(
+  '/upload/batch',
+  authorize(Role.Administrator, Role.Moderator),
+  uploadMultiple,
+  mediaController.uploadBatch,
+);
 
-router.put('/:id', validateBody(updateMediaSchema), mediaController.update);
+router.put(
+  '/:id',
+  authorize(Role.Administrator, Role.Moderator),
+  validateBody(updateMediaSchema),
+  mediaController.update,
+);
 
-router.delete('/:id', mediaController.remove);
+router.delete('/:id', authorize(Role.Administrator), mediaController.remove);
 
-router.post('/delete/batch', validateBody(batchDeleteMediaSchema), mediaController.removeBatch);
+router.post(
+  '/delete/batch',
+  authorize(Role.Administrator),
+  validateBody(batchDeleteMediaSchema),
+  mediaController.removeBatch,
+);
 
 export default router;

@@ -22,22 +22,43 @@ const optionalTranslatedFieldSchema = z
   .optional()
   .default({ en: '', ru: '' });
 
+function uniqueValues(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
 // ─── Product Property (definition ID + value) ───────────────────────────────
 
-const productPropertySchema = z.object({
-  definition: propertyDefinitionIdSchema,
-  value: z.string().trim().optional().default(''),
-  isActive: z.boolean().optional().default(true),
-}).refine((property) => !property.isActive || property.value.length > 0, {
-  message: 'Property value is required when property is active',
-  path: ['value'],
-});
+const productPropertySchema = z
+  .object({
+    definition: propertyDefinitionIdSchema,
+    value: z.string().trim().optional(),
+    values: z.array(z.string().trim().min(1, 'Property value is required')).optional(),
+    isActive: z.boolean().optional().default(true),
+  })
+  .transform((property) => {
+    const values = uniqueValues([
+      ...(property.values ?? []),
+      ...(property.value ? [property.value] : []),
+    ]);
+
+    return {
+      definition: property.definition,
+      value: values[0] ?? '',
+      values,
+      isActive: property.isActive,
+    };
+  })
+  .refine((property) => !property.isActive || property.values.length > 0, {
+    message: 'At least one property value is required when property is active',
+    path: ['values'],
+  });
 
 // ─── Product File (uploaded via media routes, referenced by URL or R2 key) ───
 
 const productFileSchema = z.object({
   url: z.string().trim().min(1, 'File URL or path is required'),
   filename: z.string().min(1, 'Filename is required'),
+  label: z.string().trim().optional().default(''),
   format: z.string().min(1, 'Format is required'),
   size: z.number().int().min(0, 'Size must be a non-negative integer'),
 });
@@ -80,6 +101,14 @@ export const updateProductSchema = z.object({
 });
 
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+
+// ─── Add Files ───────────────────────────────────────────────────────────────
+
+export const addProductFilesSchema = z.object({
+  files: z.array(productFileSchema).min(1, 'At least one product file is required'),
+});
+
+export type AddProductFilesInput = z.infer<typeof addProductFilesSchema>;
 
 // ─── List / Search Query ─────────────────────────────────────────────────────
 

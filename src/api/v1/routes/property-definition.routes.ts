@@ -23,7 +23,7 @@ router.get('/:id', propertyDefinitionController.getById);
 router.post(
   '/',
   authenticate,
-  authorize(Role.Administrator),
+  authorize(Role.Administrator, Role.Moderator),
   validateBody(createPropertyDefinitionSchema),
   propertyDefinitionController.create,
 );
@@ -31,7 +31,7 @@ router.post(
 router.put(
   '/:id',
   authenticate,
-  authorize(Role.Administrator),
+  authorize(Role.Administrator, Role.Moderator),
   validateBody(updatePropertyDefinitionSchema),
   propertyDefinitionController.update,
 );
