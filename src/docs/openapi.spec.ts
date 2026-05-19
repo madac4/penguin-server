@@ -414,25 +414,47 @@ export const baseSpec = {
         required: ['definition'],
         properties: {
           definition: { type: 'string' },
-          value: { type: 'string', default: '' },
+          value: {
+            type: 'string',
+            default: '',
+            deprecated: true,
+            description: 'Legacy single selected value. Prefer values for multi-select properties.',
+          },
+          values: {
+            type: 'array',
+            items: { type: 'string', minLength: 1 },
+            default: [],
+            description:
+              'Selected values for this property definition, e.g. ["5mm", "6mm"].',
+          },
           isActive: { type: 'boolean', default: true },
         },
       },
       ProductPropertyDto: {
         type: 'object',
-        required: ['definition', 'value', 'isActive'],
+        required: ['definition', 'value', 'values', 'isActive'],
         properties: {
           definition: { type: 'string' },
-          value: { type: 'string' },
+          value: {
+            type: 'string',
+            deprecated: true,
+            description: 'First selected value, kept for backward compatibility.',
+          },
+          values: { type: 'array', items: { type: 'string' } },
           isActive: { type: 'boolean' },
         },
       },
       ProductPropertyDetailDto: {
         type: 'object',
-        required: ['definition', 'value', 'isActive'],
+        required: ['definition', 'value', 'values', 'isActive'],
         properties: {
           definition: { $ref: '#/components/schemas/PropertyDefinitionDto' },
-          value: { type: 'string' },
+          value: {
+            type: 'string',
+            deprecated: true,
+            description: 'First selected value, kept for backward compatibility.',
+          },
+          values: { type: 'array', items: { type: 'string' } },
           isActive: { type: 'boolean' },
         },
       },
@@ -446,13 +468,18 @@ export const baseSpec = {
               'R2 object key/path. Existing R2 public URLs are accepted and normalized to a key before storage.',
           },
           filename: { type: 'string', minLength: 1 },
+          label: {
+            type: 'string',
+            default: '',
+            description: 'Optional model variant label, e.g. ring size or model size.',
+          },
           format: { type: 'string', minLength: 1 },
           size: { type: 'integer', minimum: 0 },
         },
       },
       ProductFileDto: {
         type: 'object',
-        required: ['url', 'filename', 'format', 'size'],
+        required: ['url', 'filename', 'label', 'format', 'size'],
         properties: {
           url: {
             type: ['string', 'null'],
@@ -461,6 +488,7 @@ export const baseSpec = {
               'Always null in product list/detail responses. Use the acquired product files endpoint to get signed download URLs.',
           },
           filename: { type: 'string' },
+          label: { type: 'string' },
           format: { type: 'string' },
           size: { type: 'integer' },
         },
@@ -580,6 +608,17 @@ export const baseSpec = {
             items: { $ref: '#/components/schemas/ProductPropertyInput' },
           },
           isActive: { type: 'boolean' },
+        },
+      },
+      AddProductFilesRequest: {
+        type: 'object',
+        required: ['files'],
+        properties: {
+          files: {
+            type: 'array',
+            minItems: 1,
+            items: { $ref: '#/components/schemas/ProductFileInput' },
+          },
         },
       },
       ProductFiltersDto: {
@@ -740,7 +779,7 @@ export const baseSpec = {
             type: 'array',
             items: {
               type: 'object',
-              required: ['url', 'filename', 'format', 'size', 'expiresIn'],
+              required: ['url', 'filename', 'label', 'format', 'size', 'expiresIn'],
               properties: {
                 url: {
                   type: 'string',
@@ -748,6 +787,7 @@ export const baseSpec = {
                   description: 'Short-lived signed R2 download URL.',
                 },
                 filename: { type: 'string' },
+                label: { type: 'string' },
                 format: { type: 'string' },
                 size: { type: 'integer' },
                 expiresIn: { type: 'integer', example: 60 },
@@ -1461,6 +1501,20 @@ export const baseSpec = {
         security: bearerSecurity,
         parameters: [idParam()],
         responses: { 200: response(null, 'Product deleted'), ...errorResponses },
+      },
+    },
+    '/api/v1/products/{id}/files': {
+      post: {
+        tags: ['Products'],
+        summary: 'Add model files to a product',
+        operationId: 'addProductFiles',
+        security: bearerSecurity,
+        parameters: [idParam()],
+        requestBody: jsonBody({ $ref: '#/components/schemas/AddProductFilesRequest' }),
+        responses: {
+          200: response({ $ref: '#/components/schemas/ProductDto' }, 'Product files added'),
+          ...errorResponses,
+        },
       },
     },
     '/api/v1/products/{id}/acquire': {

@@ -24,6 +24,7 @@ import type { ITagDocument } from '../models/tag.model';
 import { Tag } from '../models/tag.model';
 import { Role, UploadFolder } from '../utils/enums';
 import type {
+  AddProductFilesInput,
   CreateProductInput,
   ListProductsInput,
   UpdateProductInput,
@@ -33,8 +34,37 @@ import * as downloadService from './download.service';
 import * as subscriptionService from './subscription.service';
 import * as uploadService from './upload.service';
 
-type ProductPropertyInput = { definition: string; value: string; isActive?: boolean };
+type ProductPropertyInput = CreateProductInput['properties'][number];
 type ProductFileInput = CreateProductInput['files'][number];
+
+type ProductPropertyLike = {
+  definition: unknown;
+  value?: string;
+  values?: string[];
+  isActive?: boolean;
+};
+
+function uniqueValues(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function productPropertyValues(property: ProductPropertyLike): string[] {
+  return uniqueValues(
+    property.values?.length ? property.values : property.value ? [property.value] : [],
+  );
+}
+
+function normalizeProductProperties(properties: ProductPropertyInput[]): ProductPropertyInput[] {
+  return properties.map((property) => {
+    const values = productPropertyValues(property);
+
+    return {
+      ...property,
+      value: values[0] ?? '',
+      values,
+    };
+  });
+}
 
 async function validatePropertyDefinitions(
   properties: ProductPropertyInput[],
@@ -52,7 +82,7 @@ async function validatePropertyDefinitions(
     _id: { $in: definitionIds },
     isActive: true,
   })
-    .select('_id categories')
+    .select('_id categories values')
     .lean();
 
   if (definitions.length !== definitionIds.length) {
@@ -69,53 +99,27 @@ async function validatePropertyDefinitions(
       400,
     );
   }
-}
 
-async function syncPropertyDefinitionValues(definitionIds: string[]): Promise<void> {
-  const uniqueDefinitionIds = [...new Set(definitionIds)].filter(Boolean);
-  if (uniqueDefinitionIds.length === 0) return;
-
-  const objectIds = uniqueDefinitionIds.map((id) => new Types.ObjectId(id));
-
-  const groupedValues = await Product.aggregate<{ _id: Types.ObjectId; values: string[] }>([
-    { $unwind: { path: '$properties', preserveNullAndEmptyArrays: false } },
-    {
-      $match: {
-        'properties.definition': { $in: objectIds },
-        'properties.value': { $ne: '' },
-        'properties.isActive': { $ne: false },
-      },
-    },
-    {
-      $group: {
-        _id: '$properties.definition',
-        values: { $addToSet: '$properties.value' },
-      },
-    },
-  ]);
-
-  const valuesByDefinition = new Map(
-    groupedValues.map((item) => [
-      item._id.toString(),
-      item.values
-        .map((value) => value.trim())
-        .filter(Boolean)
-        .sort(),
-    ]),
+  const definitionsById = new Map(
+    definitions.map((definition) => [definition._id.toString(), definition]),
   );
+  const invalidValue = properties.some((property) => {
+    if (property.isActive === false) return false;
 
-  await PropertyDefinition.bulkWrite(
-    uniqueDefinitionIds.map((definitionId) => ({
-      updateOne: {
-        filter: { _id: definitionId },
-        update: { $set: { values: valuesByDefinition.get(definitionId) ?? [] } },
-      },
-    })),
-  );
+    const definition = definitionsById.get(property.definition);
+    const allowedValues = new Set((definition?.values ?? []).map((value) => value.trim()));
+    if (allowedValues.size === 0) return false;
+
+    return productPropertyValues(property).some((value) => !allowedValues.has(value));
+  });
+
+  if (invalidValue) {
+    throw new ErrorHandler('One or more product property values are not allowed', 400);
+  }
 }
 
 function normalizeProductFiles(files: ProductFileInput[]): ProductFileInput[] {
-  return files.map((file) => {
+  const normalizedFiles = files.map((file) => {
     const key = uploadService.extractKeyFromUrl(file.url);
 
     if (!key.startsWith(`${UploadFolder.Models}/`)) {
@@ -125,8 +129,16 @@ function normalizeProductFiles(files: ProductFileInput[]): ProductFileInput[] {
     return {
       ...file,
       url: key,
+      label: file.label ?? '',
     };
   });
+
+  const uniqueUrls = new Set(normalizedFiles.map((file) => file.url));
+  if (uniqueUrls.size !== normalizedFiles.length) {
+    throw new ErrorHandler('Product files must not contain duplicate URLs', 400);
+  }
+
+  return normalizedFiles;
 }
 
 // ─── Create ──────────────────────────────────────────────────────────────────
@@ -141,7 +153,8 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
     if (tagCount !== input.tags.length) throw new ErrorHandler('One or more tags not found', 404);
   }
 
-  await validatePropertyDefinitions(input.properties, input.category);
+  const properties = normalizeProductProperties(input.properties);
+  await validatePropertyDefinitions(properties, input.category);
 
   const slug: ITranslatedField = {
     en: slugify(input.name.en),
@@ -164,11 +177,34 @@ export async function createProduct(input: CreateProductInput): Promise<ProductD
     category: input.category,
     tags: input.tags,
     isFree: input.isFree,
-    properties: input.properties,
+    properties,
     isActive: input.isActive,
   });
 
-  await syncPropertyDefinitionValues(input.properties.map((property) => property.definition));
+  return toProductDto(product);
+}
+
+// ─── Add Files ───────────────────────────────────────────────────────────────
+
+export async function addProductFiles(
+  id: string,
+  input: AddProductFilesInput,
+): Promise<ProductDto> {
+  const product = await Product.findById(id);
+
+  if (!product) throw new ErrorHandler('Product not found', 404);
+
+  const newFiles = normalizeProductFiles(input.files);
+  const existingUrls = new Set(product.files.map((file) => file.url));
+
+  const duplicateFile = newFiles.find((file) => existingUrls.has(file.url));
+  if (duplicateFile) {
+    throw new ErrorHandler('Product already contains one or more of these files', 409);
+  }
+
+  product.files.push(...(newFiles as unknown as typeof product.files));
+
+  await product.save();
 
   return toProductDto(product);
 }
@@ -183,7 +219,12 @@ export async function getProductById(
     .populate<{ category: ICategoryDocument }>('category')
     .populate<{ tags: ITagDocument[] }>('tags')
     .populate<{
-      properties: { definition: IPropertyDefinitionDocument; value: string; isActive: boolean }[];
+      properties: {
+        definition: IPropertyDefinitionDocument;
+        value: string;
+        values: string[];
+        isActive: boolean;
+      }[];
     }>('properties.definition');
 
   if (!product) throw new ErrorHandler('Product not found', 404);
@@ -241,13 +282,20 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
     filter['files.format'] = { $in: query.formats };
   }
 
-  // Property filter — AND across selected definition/value pairs
+  // Property filter: AND across definitions, OR across selected values for the same definition.
   if (query.properties && query.properties.length > 0) {
+    const valuesByDefinition = query.properties.reduce<Map<string, string[]>>((map, property) => {
+      const values = map.get(property.definition) ?? [];
+      values.push(property.value);
+      map.set(property.definition, values);
+      return map;
+    }, new Map());
+
     filter.properties = {
-      $all: query.properties.map((p) => ({
+      $all: [...valuesByDefinition.entries()].map(([definition, values]) => ({
         $elemMatch: {
-          definition: new Types.ObjectId(p.definition),
-          value: p.value,
+          definition: new Types.ObjectId(definition),
+          $or: [{ values: { $in: values } }, { value: { $in: values } }],
           isActive: { $ne: false },
         },
       })),
@@ -270,7 +318,9 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
             ? Math.max(
                 ...item.properties
                   .filter((p) => p.isActive !== false)
-                  .map((p) => fuzzyScore(needle, p.value)),
+                  .flatMap((p) =>
+                    productPropertyValues(p).map((value) => fuzzyScore(needle, value)),
+                  ),
                 0,
               )
             : 0;
@@ -325,9 +375,6 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
 
   if (!product) throw new ErrorHandler('Product not found', 404);
 
-  const previousDefinitionIds = product.properties.map((property) =>
-    property.definition.toString(),
-  );
   const categoryId = input.category ?? product.category.toString();
 
   if (input.category) {
@@ -373,13 +420,15 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
   if (input.isActive !== undefined) product.isActive = input.isActive;
 
   if (input.properties !== undefined) {
-    await validatePropertyDefinitions(input.properties, categoryId);
-    product.properties = input.properties as unknown as typeof product.properties;
+    const properties = normalizeProductProperties(input.properties);
+    await validatePropertyDefinitions(properties, categoryId);
+    product.properties = properties as unknown as typeof product.properties;
   } else if (input.category !== undefined) {
     await validatePropertyDefinitions(
       product.properties.map((property) => ({
         definition: property.definition.toString(),
-        value: property.value,
+        value: productPropertyValues(property)[0] ?? '',
+        values: productPropertyValues(property),
         isActive: property.isActive,
       })),
       categoryId,
@@ -387,9 +436,6 @@ export async function updateProduct(id: string, input: UpdateProductInput): Prom
   }
 
   await product.save();
-
-  const currentDefinitionIds = product.properties.map((property) => property.definition.toString());
-  await syncPropertyDefinitionValues([...previousDefinitionIds, ...currentDefinitionIds]);
 
   return toProductDto(product);
 }
@@ -403,7 +449,6 @@ export async function getProductFilters(categoryId?: string): Promise<ProductFil
   type FacetResult = {
     formats: { _id: string }[];
     tagIds: { _id: Types.ObjectId }[];
-    propertyValues: { _id: Types.ObjectId; values: string[] }[];
   };
 
   const [facet] = await Product.aggregate<FacetResult>([
@@ -420,16 +465,6 @@ export async function getProductFilters(categoryId?: string): Promise<ProductFil
           { $unwind: { path: '$tags', preserveNullAndEmptyArrays: false } },
           { $group: { _id: '$tags' } },
         ],
-        propertyValues: [
-          { $unwind: { path: '$properties', preserveNullAndEmptyArrays: false } },
-          { $match: { 'properties.isActive': { $ne: false }, 'properties.value': { $ne: '' } } },
-          {
-            $group: {
-              _id: '$properties.definition',
-              values: { $addToSet: '$properties.value' },
-            },
-          },
-        ],
       },
     },
   ]);
@@ -441,16 +476,12 @@ export async function getProductFilters(categoryId?: string): Promise<ProductFil
 
   const propertyFilter: Record<string, unknown> = { isActive: true };
   if (categoryId) propertyFilter.categories = categoryId;
-  else propertyFilter._id = { $in: facet.propertyValues.map((p) => p._id) };
 
   const definitions = await PropertyDefinition.find(propertyFilter).sort({ createdAt: -1 }).lean();
-  const valuesByDefinition = new Map(
-    facet.propertyValues.map((property) => [property._id.toString(), property.values]),
-  );
 
   const properties = definitions
     .map((def) => {
-      const values = valuesByDefinition.get(def._id.toString()) ?? [];
+      const values = uniqueValues(def.values ?? []).sort();
 
       return {
         definition: toPropertyDefinitionDto(def as unknown as IPropertyDefinitionDocument),
@@ -473,8 +504,6 @@ export async function deleteProduct(id: string): Promise<void> {
 
   if (!product) throw new ErrorHandler('Product not found', 404);
 
-  const definitionIds = product.properties.map((property) => property.definition.toString());
-
   if (product.images.length > 0) {
     await uploadService.deleteFiles(product.images).catch(() => {});
   }
@@ -486,5 +515,4 @@ export async function deleteProduct(id: string): Promise<void> {
   await collectionService.removeProductFromAllCollections(id);
   await downloadService.removeProductFromAllDownloads(id);
   await Product.findByIdAndDelete(id);
-  await syncPropertyDefinitionValues(definitionIds);
 }

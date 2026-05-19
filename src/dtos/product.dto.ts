@@ -21,6 +21,16 @@ function isPopulatedDocument<T extends { _id: unknown; createdAt: Date; updatedA
   );
 }
 
+type ProductPropertyLike = {
+  value?: string;
+  values?: string[];
+};
+
+function productPropertyValues(property: ProductPropertyLike): string[] {
+  const values = property.values?.length ? property.values : property.value ? [property.value] : [];
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
 export interface ProductFiltersDto {
   formats: string[];
   tags: TagDto[];
@@ -32,19 +42,24 @@ export interface ProductFiltersDto {
 
 export interface ProductPropertyDto {
   definition: string;
+  /** First selected value, kept for backward compatibility. */
   value: string;
+  values: string[];
   isActive: boolean;
 }
 
 export interface ProductPropertyDetailDto {
   definition: PropertyDefinitionDto;
+  /** First selected value, kept for backward compatibility. */
   value: string;
+  values: string[];
   isActive: boolean;
 }
 
 export interface ProductFileDto {
   url: string | null; // null when the caller has no access to download
   filename: string;
+  label: string;
   format: string;
   size: number;
 }
@@ -96,6 +111,7 @@ export function toProductDto(
     files: (doc.files ?? []).map((f) => ({
       url: null,
       filename: f.filename,
+      label: f.label ?? '',
       format: f.format,
       size: f.size,
     })),
@@ -106,7 +122,8 @@ export function toProductDto(
     likeCount: doc.likeCount,
     properties: (doc.properties ?? []).map((p) => ({
       definition: p.definition?.toString() ?? '',
-      value: p.value,
+      value: productPropertyValues(p)[0] ?? '',
+      values: productPropertyValues(p),
       isActive: p.isActive ?? true,
     })),
     listingProperties: (doc.properties ?? [])
@@ -115,7 +132,8 @@ export function toProductDto(
         definition: toPropertyDefinitionDto(
           listingDefs.get(p.definition.toString())!,
         ),
-        value: p.value,
+        value: productPropertyValues(p)[0] ?? '',
+        values: productPropertyValues(p),
         isActive: p.isActive ?? true,
       })),
     isActive: doc.isActive,
@@ -140,6 +158,7 @@ export function toProductDetailDto(
     files: (doc.files ?? []).map((f) => ({
       url: null,
       filename: f.filename,
+      label: f.label ?? '',
       format: f.format,
       size: f.size,
     })),
@@ -160,14 +179,16 @@ export function toProductDetailDto(
         definition: toPropertyDefinitionDto(
           p.definition as unknown as IPropertyDefinitionDocument,
         ),
-        value: p.value,
+        value: productPropertyValues(p)[0] ?? '',
+        values: productPropertyValues(p),
         isActive: p.isActive ?? true,
       })),
     listingProperties: (doc.properties ?? [])
       .filter((p) => (p.isActive ?? true) && listingDefs.has(p.definition?.toString() ?? ''))
       .map((p) => ({
         definition: toPropertyDefinitionDto(listingDefs.get(p.definition.toString())!),
-        value: p.value,
+        value: productPropertyValues(p)[0] ?? '',
+        values: productPropertyValues(p),
         isActive: p.isActive ?? true,
       })),
     isActive: doc.isActive,
