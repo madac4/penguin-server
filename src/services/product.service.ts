@@ -313,6 +313,14 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
 
     const scored = allItems
       .map((item) => {
+        const nameScore = Math.max(
+          fuzzyScore(needle, item.name.en),
+          fuzzyScore(needle, item.name.ru),
+        );
+        const descriptionScore = Math.max(
+          fuzzyScore(needle, item.description?.en ?? ''),
+          fuzzyScore(needle, item.description?.ru ?? ''),
+        );
         const propertyBest =
           item.properties?.length > 0
             ? Math.max(
@@ -325,17 +333,20 @@ export async function listProducts(query: ListProductsInput): Promise<PaginatedD
               )
             : 0;
 
-        const best = Math.max(
-          fuzzyScore(needle, item.name.en),
-          fuzzyScore(needle, item.name.ru),
-          fuzzyScore(needle, item.description?.en ?? ''),
-          fuzzyScore(needle, item.description?.ru ?? ''),
-          propertyBest,
-        );
-        return { item, score: best };
+        const metadataScore = Math.max(descriptionScore, propertyBest);
+        const isNameMatch = nameScore >= DEFAULT_FUZZY_THRESHOLD;
+
+        return {
+          item,
+          isNameMatch,
+          score: isNameMatch ? nameScore : metadataScore,
+        };
       })
       .filter(({ score }) => score >= DEFAULT_FUZZY_THRESHOLD)
-      .sort((a, b) => b.score - a.score);
+      .sort(
+        (a, b) =>
+          Number(b.isNameMatch) - Number(a.isNameMatch) || b.score - a.score,
+      );
 
     const total = scored.length;
     const start = (page - 1) * limit;
